@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/apple-touch-icon.png">
+<style>
+html, body {
+  position: fixed;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: auto;
+}
+</style>
+<title>Thanks Calendar</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Outfit:wght@800&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+:root{
+  --c0:#F8F6F2;--c1:#FFFFFF;--c2:#EFECE6;--c3:#E0DBD2;
+  --ink:#6d6865;--ink2:#8a8480;--ink3:#B0AAA4;
+  --inkd:#3a3634;
+  --r:14px;--rm:10px;
+}
+body{
+  font-family:'DM Sans',-apple-system,'Hiragino Sans',sans-serif;
+  background:var(--c0);
+  display:flex;justify-content:center;align-items:flex-start;
+  min-height:100vh;
+  padding:0;margin:0;
+}
+.phone{
+  width:100vw;height:100vh;height:100dvh;
+  background:var(--c0);border-radius:0;
+  overflow:hidden;
+  display:flex;flex-direction:column;position:relative;flex-shrink:0;
+}
+.sb{
+  width:100%;height:0px;min-height:0;padding:0;
+  display:none;
+  background:var(--c0);flex-shrink:0;position:relative;z-index:10;
+}
+.bnav{
+  width:100%;
+  height:calc(64px + env(safe-area-inset-bottom, 0px));
+  padding-bottom:env(safe-area-inset-bottom, 0px);
+  display:flex;align-items:center;
+  background:var(--c0);border-top:1px solid var(--c3);
+  flex-shrink:0;position:relative;z-index:10;
+}
+.bnav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;height:100%;}
+.bnav-item svg{width:20px;height:20px;color:var(--ink3);}
+.bnav-item.active svg{color:var(--ink);}
+.bnav-label{font-size:10px;color:var(--ink3);}
+.bnav-item.active .bnav-label{color:var(--ink);font-weight:600;}
+.screens{flex:1;position:relative;overflow:hidden;min-height:0;}
+.screen{
+  position:absolute;top:0;left:0;right:0;bottom:0;
+  display:flex;flex-direction:column;background:var(--c0);
+  transform:translateX(100%);
+  transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  overflow:hidden;
+}
+.screen.active{transform:translateX(0);}
+.back-btn{
+  display:flex;align-items:center;gap:4px;
+  font-size:14px;font-weight:500;color:#C0392B;
+  background:none;border:none;cursor:pointer;font-family:inherit;
+  padding:12px 20px 4px;flex-shrink:0;text-align:left;
+}
+.back-btn svg{width:16px;height:16px;}
+.screen-body{
+  flex:1;overflow-y:auto;overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;padding:0 16px 20px;min-height:0;
+}
+.cal-outer{flex:1;overflow:hidden;position:relative;min-height:0;display:flex;flex-direction:column;}
+.cal-slider{display:flex;width:300%;flex:1;position:relative;}
+.cal-page{width:33.333%;height:100%;display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;}
+.cal-ev-list{height:160px;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 14px 12px;border-top:1px solid var(--c3);flex-shrink:0;}
+.cal-dow-row{display:grid;grid-template-columns:repeat(7,1fr);padding:5px 10px 3px;flex-shrink:0;}
+.cal-dow-cell{text-align:center;font-size:10px;font-weight:500;color:var(--ink3);}
+.cal-dow-cell.sun{color:#C0392B;}.cal-dow-cell.sat{color:#2874C8;}
+.cal-grid-outer{flex:1;min-height:0;position:relative;padding:0;}
+.cal-grid-base{display:grid;grid-template-columns:repeat(7,1fr);height:100%;grid-template-rows:repeat(6,1fr);}
+.cal-cell{display:flex;flex-direction:column;align-items:center;padding-top:3px;cursor:pointer;position:relative;border-bottom:1px solid var(--c3);box-sizing:border-box;}
+.cal-cell:active{background:var(--c2);}
+.cal-num{width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:13px;font-weight:500;color:var(--inkd);flex-shrink:0;z-index:2;position:relative;}
+.cal-cell.sun .cal-num{color:#C0392B;}
+.cal-cell.sat .cal-num{color:#2874C8;}
+.cal-cell.other .cal-num{opacity:0.28;}
+.cal-cell.today .cal-num{background:var(--inkd);color:white;}
+.cal-cell.selected:not(.today) .cal-num{background:var(--c3);}
+.cal-ev-layer{position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;overflow:hidden;}
+.cal-ev-bar{position:absolute;height:14px;font-size:8px;font-weight:500;line-height:14px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:0 4px;pointer-events:all;cursor:pointer;box-sizing:border-box;}
+.cal-ev-bar.start{border-radius:3px 0 0 3px;}
+.cal-ev-bar.end{border-radius:0 3px 3px 0;}
+.cal-ev-bar.single{border-radius:3px;}
+.cal-ev-bar.mid{border-radius:0;}
+.ev-card{background:var(--c1);border-radius:var(--r);padding:10px 12px;margin-bottom:6px;cursor:pointer;}
+.ev-card:active{background:var(--c2);}
+.ev-card-inner{display:flex;gap:8px;align-items:flex-start;}
+.ev-color-bar{width:3px;border-radius:2px;flex-shrink:0;align-self:stretch;min-height:28px;}
+.ev-card-body{flex:1;min-width:0;}
+.ev-card-title{font-size:14px;font-weight:600;color:var(--ink);margin-bottom:2px;}
+.ev-card-time{font-size:11px;color:var(--ink2);}
+.ev-people{display:flex;gap:3px;flex-wrap:wrap;margin-top:4px;}
+.p-chip{padding:2px 7px;border-radius:20px;font-size:11px;color:var(--ink2);border:1px solid var(--c3);}
+.alert-badge{background:#F2C94C;color:var(--ink);border-radius:20px;padding:2px 6px;font-size:10px;font-weight:600;}
+.week-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;}
+.week-hdr{display:grid;grid-template-columns:30px repeat(7,1fr);border-bottom:1px solid var(--c3);flex-shrink:0;padding:0 16px;}
+.week-dow{text-align:center;padding:4px 1px;}
+.week-dow-name{font-size:9px;color:var(--ink3);}
+.week-dow-num{width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:11px;color:var(--ink);margin:0 auto;}
+.week-dow-num.today{background:var(--ink);color:white;}
+.week-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.week-grid{display:grid;grid-template-columns:30px repeat(7,1fr);padding:0 16px;}
+.week-time-col{padding:0 3px;border-right:1px solid var(--c3);}
+.week-time{font-size:8px;color:var(--ink3);height:38px;display:flex;align-items:flex-start;padding-top:1px;}
+.week-day-col{border-right:1px solid var(--c3);position:relative;}
+.week-day-col:last-child{border-right:none;}
+.week-hour{height:38px;border-bottom:0.5px solid var(--c3);}
+.week-ev{position:absolute;left:1px;right:1px;border-radius:3px;padding:1px 2px;font-size:8px;font-weight:500;overflow:hidden;cursor:pointer;}
+.detail-hero{background:var(--c1);border-radius:var(--r);padding:14px;margin-bottom:12px;}
+.detail-color-strip{height:4px;border-radius:2px;margin-bottom:10px;}
+.detail-title{font-size:17px;font-weight:600;color:var(--inkd);margin-bottom:3px;}
+.detail-meta{font-size:12px;color:var(--ink2);margin-bottom:8px;}
+.section-hdr{display:flex;justify-content:space-between;align-items:center;margin:14px 0 6px;}
+.section-title{font-size:11px;font-weight:600;color:var(--ink2);letter-spacing:0.3px;}
+.add-link{font-size:12px;color:var(--inkd);font-weight:500;cursor:pointer;border:none;background:none;font-family:inherit;}
+.memo-box{background:var(--c1);border-radius:var(--r);padding:12px;font-size:13px;color:var(--ink2);border:1.5px solid var(--c3);min-height:44px;line-height:1.6;}
+.log-card{background:var(--c1);border-radius:var(--r);padding:10px 12px;margin-bottom:6px;display:flex;gap:9px;align-items:flex-start;cursor:pointer;}
+.log-card:active{background:var(--c2);}
+.log-icon{border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.log-icon svg{width:16px;height:16px;}
+.log-body{flex:1;min-width:0;}
+.log-title-text{font-size:13px;font-weight:500;color:var(--inkd);line-height:1.4;}
+.log-meta{font-size:11px;color:var(--ink2);margin-top:2px;}
+.log-tag{font-size:10px;font-weight:500;padding:2px 6px;border-radius:6px;white-space:nowrap;}
+.tag-neutral{background:var(--c2);color:var(--ink2);}
+.status-pill{font-size:10px;font-weight:600;padding:3px 8px;border-radius:10px;white-space:nowrap;cursor:pointer;flex-shrink:0;border:none;font-family:inherit;}
+.pill-pending{background:#ec6a52;color:#fff;}
+.pill-done{background:#93aec1;color:#fff;}
+.reply-card{background:var(--c2);border-radius:7px;padding:6px 8px;margin-top:5px;font-size:11px;color:var(--ink2);display:flex;align-items:center;gap:4px;line-height:1.4;}
+.toggle-wrap{display:flex;align-items:center;justify-content:space-between;background:var(--c1);border-radius:var(--r);padding:12px 14px;margin-bottom:6px;}
+.toggle-label{font-size:14px;font-weight:500;color:var(--ink);}
+.toggle{width:40px;height:24px;border-radius:12px;background:var(--c3);position:relative;cursor:pointer;transition:background 0.18s;flex-shrink:0;}
+.toggle.on{background:#93aec1;}
+.toggle::after{content:'';width:18px;height:18px;border-radius:50%;background:white;position:absolute;top:3px;left:3px;transition:transform 0.18s;box-shadow:0 1px 3px rgba(0,0,0,0.15);}
+.toggle.on::after{transform:translateX(16px);}
+.people-card{background:var(--c1);border-radius:var(--r);padding:12px 14px;margin-bottom:6px;display:flex;align-items:center;gap:10px;cursor:pointer;}
+.people-card:active{background:var(--c2);}
+.person-hero{background:var(--c1);border-radius:var(--r);padding:18px 14px;margin-bottom:12px;display:flex;flex-direction:column;align-items:center;text-align:center;}
+.notif-card{background:var(--c1);border-radius:var(--r);padding:12px;margin-bottom:6px;display:flex;gap:10px;align-items:flex-start;}
+.hancho-filter{display:flex;gap:4px;padding:0 16px 8px;flex-shrink:0;overflow-x:auto;scrollbar-width:none;}
+.hancho-filter::-webkit-scrollbar{display:none;}
+.hf-btn{padding:4px 10px;border-radius:20px;border:1.5px solid var(--c3);background:transparent;font-size:11px;font-weight:500;color:var(--ink2);cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;}
+.hf-btn.active{background:var(--ink);color:white;border-color:var(--ink);}
+.fab{position:absolute;bottom:12px;right:16px;width:48px;height:48px;border-radius:50%;background:var(--ink);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(26,23,20,0.28);z-index:20;}
+.fab svg{width:20px;height:20px;color:white;}
+.fab:active{transform:scale(0.92);}
+.modal-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.36);z-index:100;display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity 0.2s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal{background:var(--c0);border-radius:22px 22px 0 0;padding:16px 18px 40px;width:100%;max-height:88%;overflow-y:auto;transform:translateY(100%);transition:transform 0.28s cubic-bezier(0.32,0,0.67,0);}
+.modal-overlay.open .modal{transform:translateY(0);}
+.modal-handle{width:32px;height:4px;background:var(--c3);border-radius:2px;margin:0 auto 14px;}
+.modal-title{font-size:16px;font-weight:600;color:var(--ink);margin-bottom:14px;}
+.field{margin-bottom:12px;}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--ink2);margin-bottom:4px;}
+.field input,.field textarea,.field select{width:100%;padding:10px 11px;border:1.5px solid var(--c3);border-radius:var(--rm);background:var(--c1);font-size:16px;color:var(--ink);font-family:inherit;outline:none;-webkit-text-size-adjust:100%;}
+.field input[type="date"]{width:100%;max-width:100%;min-width:0;display:block;-webkit-appearance:none;appearance:none;}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--ink);}
+.field textarea{min-height:60px;resize:none;}
+.color-row{display:flex;gap:6px;flex-wrap:wrap;}
+.color-dot{width:28px;height:28px;border-radius:50%;cursor:pointer;border:3px solid transparent;}
+.color-dot.sel{border-color:var(--ink);}
+.repeat-row,.person-select{display:flex;gap:5px;flex-wrap:wrap;}
+.repeat-btn,.ps-chip{padding:5px 10px;border-radius:20px;border:1.5px solid var(--c3);background:transparent;font-size:12px;color:var(--ink2);cursor:pointer;font-family:inherit;}
+.repeat-btn.active,.ps-chip.sel{background:var(--ink);color:white;border-color:var(--ink);}
+.modal-actions{display:flex;gap:6px;margin-top:10px;}
+.btn-primary{flex:1;padding:12px;border-radius:var(--rm);background:var(--ink);color:white;border:none;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;}
+.btn-secondary{padding:12px 13px;border-radius:var(--rm);background:transparent;color:var(--ink2);border:1.5px solid var(--c3);font-size:13px;cursor:pointer;font-family:inherit;}
+.btn-ghost{flex:1;padding:11px;border-radius:var(--rm);background:var(--c2);color:var(--ink);border:none;font-size:13px;cursor:pointer;font-family:inherit;}
+.btn-danger{flex:1;padding:11px;border-radius:var(--rm);background:#FFE8E3;color:#C0392B;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;}
+.reply-candidates{display:flex;flex-direction:column;gap:4px;max-height:130px;overflow-y:auto;}
+.reply-cand,.reply-cand-none{padding:8px 10px;border-radius:var(--rm);border:1.5px solid var(--c3);cursor:pointer;font-size:12px;color:var(--ink);background:var(--c1);}
+.reply-cand-none{color:var(--ink2);background:transparent;}
+.reply-cand.sel{border-color:var(--inkd);background:var(--inkd);color:#fff;font-weight:600;}
+.reply-cand-none.sel{border-color:var(--inkd);background:var(--c2);font-weight:600;}
+
+/* ── LOGIN SCREEN ── */
+.login-screen{
+  position:absolute;inset:0;
+  background:var(--c0);
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  z-index:200;
+  padding:32px 28px;
+  transition:opacity 0.3s;
+}
+.login-screen.hidden{opacity:0;pointer-events:none;}
+.login-title{
+  font-family:'Outfit',sans-serif;font-weight:800;
+  font-size:38px;line-height:1;
+  color:#1E5C35;letter-spacing:-0.12em;
+  margin-bottom:6px;
+}
+.login-sub{font-size:12px;color:var(--ink3);margin-bottom:36px;}
+.login-field{width:100%;margin-bottom:12px;}
+.login-field label{display:block;font-size:11px;font-weight:600;color:var(--ink2);margin-bottom:4px;}
+.login-field input{width:100%;padding:12px 14px;border:1.5px solid var(--c3);border-radius:var(--rm);background:var(--c1);font-size:16px;color:var(--ink);font-family:inherit;outline:none;}
+.login-field input:focus{border-color:var(--ink);}
+.login-btn{width:100%;padding:14px;border-radius:var(--rm);background:var(--ink);color:white;border:none;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;margin-top:6px;}
+.login-err{font-size:12px;color:#C0392B;margin-top:8px;text-align:center;min-height:18px;}
+
+/* ── LOADING ── */
+.loading-overlay{
+  position:absolute;inset:0;background:var(--c0);
+  display:flex;align-items:center;justify-content:center;
+  z-index:150;transition:opacity 0.3s;
+}
+.loading-overlay.hidden{opacity:0;pointer-events:none;}
+.loading-spinner{
+  width:28px;height:28px;border:2.5px solid var(--c3);
+  border-top-color:var(--ink);border-radius:50%;
+  animation:spin 0.8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* SYNC indicator */
+.sync-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:#93aec1;display:inline-block;margin-left:4px;
+  transition:background 0.3s;
+}
+.sync-dot.syncing{background:#f8b042;animation:pulse 0.8s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <!-- LOGIN -->
+  <div class="login-screen" id="login-screen">
+    <div class="login-title">Thanks.</div>
+    <div class="login-sub">夫婦の共有カレンダー</div>
+    <div class="login-field">
+      <label>メールアドレス</label>
+      <input type="email" id="login-email" placeholder="example@email.com" autocomplete="email">
+    </div>
+    <div class="login-field">
+      <label>パスワード</label>
+      <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="login-btn" onclick="doLogin()">ログイン</button>
+    <div class="login-err" id="login-err"></div>
+  </div>
+
+  <!-- LOADING -->
+  <div class="loading-overlay" id="loading-overlay">
+    <div class="loading-spinner"></div>
+  </div>
+
+  <div class="sb">
+    <span style="font-size:15px;font-weight:600;color:var(--ink);" id="sb-time">9:41</span>
+    <div style="display:flex;align-items:center;gap:4px;">
+      <span class="sync-dot" id="sync-dot"></span>
+      <span style="font-size:11px;color:var(--ink);">●●●</span>
+    </div>
+  </div>
+
+  <div class="screens" id="screens">
+
+    <!-- CALENDAR -->
+    <div class="screen active" id="scr-calendar">
+      <div class="cal-outer" id="cal-outer">
+        <div class="cal-slider" id="cal-slider">
+          <div class="cal-page" id="cal-page-0"></div>
+          <div class="cal-page" id="cal-page-1"></div>
+          <div class="cal-page" id="cal-page-2"></div>
+        </div>
+      </div>
+      <button class="fab" onclick="openModal('event',null)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+    </div>
+
+    <!-- EVENT DETAIL -->
+    <div class="screen" id="scr-evdetail">
+      <button class="back-btn" onclick="goBack()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>戻る
+      </button>
+      <div class="screen-body" id="evdetail-body"></div>
+      <button class="fab" onclick="openModal('log',null)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+    </div>
+
+    <!-- HANCHO -->
+    <div class="screen" id="scr-hancho">
+      <div id="hancho-hdr-wrap"></div>
+      <div class="hancho-filter" id="hancho-cat-filter" style="padding-top:10px;">
+        <button class="hf-btn active" onclick="setHF('all',this)">all</button>
+        <button class="hf-btn" onclick="setHF('pending',this)">未完了</button>
+        <button class="hf-btn" onclick="setHF('okuri',this)">おくりもの</button>
+        <button class="hf-btn" onclick="setHF('itadaki',this)">いただきもの</button>
+        <button class="hf-btn" onclick="setHF('kashi',this)">かしたもの</button>
+        <button class="hf-btn" onclick="setHF('kari',this)">かりたもの</button>
+        <button class="hf-btn" onclick="setHF('arigato',this)">ありがとう</button>
+      </div>
+      <div class="hancho-filter" id="hancho-person-filter" style="padding-top:0;"></div>
+      <div style="padding:0 16px 6px;flex-shrink:0;">
+        <input id="hancho-search" type="search" placeholder="キーワード検索..." oninput="renderHancho()" style="width:100%;padding:8px 12px;border:1.5px solid var(--c3);border-radius:20px;background:var(--c1);font-size:16px;color:var(--ink);font-family:inherit;outline:none;-webkit-text-size-adjust:100%;">
+      </div>
+      <div class="screen-body" id="hancho-body"></div>
+      <button class="fab" onclick="openModal('log',null)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+    </div>
+
+    <!-- LOG DETAIL -->
+    <div class="screen" id="scr-logdetail">
+      <button class="back-btn" onclick="goBack()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>戻る
+      </button>
+      <div class="screen-body" id="logdetail-body"></div>
+    </div>
+
+    <!-- PEOPLE -->
+    <div class="screen" id="scr-people">
+      <div id="people-hdr-wrap"></div>
+      <div class="screen-body" id="people-body" style="padding-top:10px;"></div>
+      <button class="fab" onclick="openModal('person',null)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+    </div>
+
+    <!-- PERSON DETAIL -->
+    <div class="screen" id="scr-persondetail">
+      <button class="back-btn" onclick="goBack()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>戻る
+      </button>
+      <div class="screen-body" id="persondetail-body"></div>
+    </div>
+
+    <!-- NOTIF -->
+    <div class="screen" id="scr-notif">
+      <div id="notif-hdr-wrap"></div>
+      <div class="screen-body" id="notif-body" style="padding-top:10px;"></div>
+    </div>
+
+  </div>
+
+  <div class="bnav">
+    <div class="bnav-item active" id="bnav-cal" onclick="showMain('calendar')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>
+      <span class="bnav-label">calendar</span>
+    </div>
+    <div class="bnav-item" id="bnav-han" onclick="showMain('hancho')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      <span class="bnav-label">log</span>
+    </div>
+    <div class="bnav-item" id="bnav-ppl" onclick="showMain('people')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <span class="bnav-label">people</span>
+    </div>
+    <div class="bnav-item" id="bnav-notif" onclick="showMain('notif')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span class="bnav-label">remind</span>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-overlay" onclick="closeModalOutside(event)">
+    <div class="modal" id="modal-sheet"><div class="modal-handle" id="modal-handle"></div><div id="modal-inner"></div></div>
+  </div>
+
+</div>
+
+<script>
+// ══════════════════════════════════════════
+// SUPABASE 設定
+// ここを自分の値に書き換えてください
+// ══════════════════════════════════════════
+const SUPABASE_URL = 'https://ohqgpmtkhhixvnkrjbvb.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ocWdwbXRraGhpeHZua3JqYnZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzMDE4MjEsImV4cCI6MjA5MTg3NzgyMX0.tkm8eT9FCWGmKXPPVeDV6L6STEQ_jVnrNkcGDbRtSCg';
+
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false
+  }
+});
+
+// ── ログイン ──
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-err');
+  errEl.textContent = '';
+  if (!email || !password) { errEl.textContent = 'メールとパスワードを入力してください'; return; }
+  
+  try {
+    const { data, error } = await db.auth.signInWithPassword({ email, password });
+    if (error) {
+      console.error('Login error:', error);
+      errEl.textContent = 'エラー: ' + error.message;
+      return;
+    }
+    if (data && data.session) {
+      document.getElementById('login-screen').classList.add('hidden');
+      await loadAllData();
+    }
+  } catch(e) {
+    console.error('Login exception:', e);
+    errEl.textContent = '接続エラー: ' + e.message;
+  }
+}
+
+// セッション確認（リロード時に自動ログイン）
+async function checkSession() {
+  try {
+    const { data: { session } } = await db.auth.getSession();
+    if (session) {
+      document.getElementById('login-screen').classList.add('hidden');
+      await loadAllData();
+    } else {
+      document.getElementById('loading-overlay').classList.add('hidden');
+    }
+  } catch(e) {
+    console.error('Session check error:', e);
+    document.getElementById('loading-overlay').classList.add('hidden');
+  }
+}
+
+// ── DATA ──
+let people = [];
+let events = [];
+let logs = [];
+
+function setSyncing(v) {
+  document.getElementById('sync-dot').classList.toggle('syncing', v);
+}
+
+async function loadAllData() {
+  setSyncing(true);
+  const [{ data: p }, { data: e }, { data: l }] = await Promise.all([
+    db.from('people').select('*').order('id'),
+    db.from('events').select('*').order('id'),
+    db.from('logs').select('*').order('id'),
+  ]);
+  people = (p || []).map(fromDBPerson);
+  events = (e || []).map(fromDBEvent);
+  logs   = (l || []).map(fromDBLog);
+  setSyncing(false);
+  document.getElementById('loading-overlay').classList.add('hidden');
+  attachSwipe();
+  renderCal();
+  setupRealtime();
+}
+
+// DB ↔ JS 変換
+function fromDBPerson(r) { return { id: r.id, name: r.name, initial: r.initial || r.name.charAt(0), color: r.color, rel: r.rel, sortOrder: r.sort_order || 0 }; }
+function fromDBEvent(r) { return { id: r.id, title: r.title, date: r.date, endDate: r.end_date || r.date, time: r.time || 'allday', color: r.color, people: r.people || [], repeat: r.repeat || 'none', memo: r.memo || '' }; }
+function fromDBLog(r) { return { id: r.id, personId: r.person_id, cat: r.cat, title: r.title, date: r.date, done: r.done, replyTo: r.reply_to, amount: r.amount, memo: r.memo || '', displayName: r.display_name || '' }; }
+
+// ── REALTIME ──
+function setupRealtime() {
+  db.channel('db-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'people' }, handleRealtimePeople)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, handleRealtimeEvents)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'logs' }, handleRealtimeLogs)
+    .subscribe();
+}
+
+function handleRealtimePeople({ eventType, new: n, old: o }) {
+  if (eventType === 'INSERT') { if (!people.find(x => x.id === n.id)) people.push(fromDBPerson(n)); }
+  else if (eventType === 'UPDATE') { const i = people.findIndex(x => x.id === n.id); if (i >= 0) people[i] = fromDBPerson(n); }
+  else if (eventType === 'DELETE') people = people.filter(x => x.id !== o.id);
+  if (mainScreen === 'people') renderPeople();
+}
+function handleRealtimeEvents({ eventType, new: n, old: o }) {
+  if (eventType === 'INSERT') { if (!events.find(x => x.id === n.id)) events.push(fromDBEvent(n)); }
+  else if (eventType === 'UPDATE') { const i = events.findIndex(x => x.id === n.id); if (i >= 0) events[i] = fromDBEvent(n); }
+  else if (eventType === 'DELETE') events = events.filter(x => x.id !== o.id);
+  renderCal();
+}
+function handleRealtimeLogs({ eventType, new: n, old: o }) {
+  if (eventType === 'INSERT') {
+    // 自分のsaveLogで既に追加済みの場合はスキップ
+    if (!logs.find(x => x.id === n.id)) logs.push(fromDBLog(n));
+  }
+  else if (eventType === 'UPDATE') { const i = logs.findIndex(x => x.id === n.id); if (i >= 0) logs[i] = fromDBLog(n); }
+  else if (eventType === 'DELETE') logs = logs.filter(x => x.id !== o.id);
+  if (mainScreen === 'hancho') renderHancho();
+  if (mainScreen === 'people') renderPeople();
+}
+
+// ── CONSTANTS ──
+const IC = '#6d6865';
+const ICONS = {
+  okuri: '<svg viewBox="0 0 24 24" fill="none" stroke="' + IC + '" stroke-width="1.8"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>',
+  itadaki: '<svg viewBox="0 0 24 24" fill="none" stroke="' + IC + '" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>',
+  kashi: '<svg viewBox="0 0 24 24" fill="none" stroke="' + IC + '" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>',
+  kari: '<svg viewBox="0 0 24 24" fill="none" stroke="' + IC + '" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+  arigato: '<svg viewBox="0 0 24 24" fill="none" stroke="' + IC + '" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>',
+};
+const ICON_BG = { okuri: 'var(--c2)', itadaki: 'var(--c2)', kashi: 'var(--c2)', kari: 'var(--c2)', arigato: 'var(--c2)' };
+const CAT = { okuri: { label: 'おくりもの', cls: 'tag-neutral' }, itadaki: { label: 'いただきもの', cls: 'tag-neutral' }, kashi: { label: 'かしたもの', cls: 'tag-neutral' }, kari: { label: 'かりたもの', cls: 'tag-neutral' }, arigato: { label: 'ありがとう', cls: 'tag-neutral' } };
+const COLORS = ['#9dbdba', '#93aec1', '#f8b042', '#ec6a52', '#f3b7ad', '#8A9E6E', '#B090CC', '#C0A830', '#6A1020', '#7090B8'];
+const REPEAT = { none: '繰り返しなし', yearly: '毎年（誕生日・記念日）' };
+
+function getP(id) { return people.find(p => p.id === id); }
+function pendingLogs(pid) { return logs.filter(l => l.personId === pid && !l.done); }
+function fmtDate(d) { const dt = new Date(d + 'T00:00:00'); return (dt.getMonth() + 1) + '月' + dt.getDate() + '日（' + ['日', '月', '火', '水', '木', '金', '土'][dt.getDay()] + '）'; }
+function todayStr() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function fmtAmt(a) { return a ? '¥' + Number(a).toLocaleString() : ''; }
+function esc(s) { return s ? String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') : ''; }
+function iconHTML(cat, sz) { sz = sz || 32; return '<div class="log-icon" style="background:' + ICON_BG[cat] + ';width:' + sz + 'px;height:' + sz + 'px;border-radius:' + (sz * 0.28 | 0) + 'px;">' + ICONS[cat] + '</div>'; }
+const FLAG_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>';
+
+setInterval(() => { const d = new Date(); document.getElementById('sb-time').textContent = d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0'); }, 15000);
+
+// ── NAVIGATION ──
+let mainScreen = 'calendar';
+let screenStack = [];
+const MAIN = { calendar: 'scr-calendar', hancho: 'scr-hancho', people: 'scr-people', notif: 'scr-notif' };
+const BNAV = { calendar: 'bnav-cal', hancho: 'bnav-han', people: 'bnav-ppl', notif: 'bnav-notif' };
+
+function setActive(id) {
+  document.querySelectorAll('.screen').forEach(s => { s.classList.toggle('active', s.id === id); });
+}
+function showMain(name) {
+  mainScreen = name; screenStack = []; setActive(MAIN[name]);
+  Object.keys(BNAV).forEach(k => { document.getElementById(BNAV[k]).classList.toggle('active', k === name); });
+  if (name === 'hancho') { renderScreenHeader('hancho'); renderHancho(); buildPersonFilterChips(); }
+  if (name === 'people') { renderScreenHeader('people'); renderPeople(); }
+  if (name === 'notif') { renderScreenHeader('notif'); renderNotif(); }
+}
+function push(id) { screenStack.push(id); setActive(id); }
+function goBack() {
+  screenStack.pop();
+  if (screenStack.length) {
+    const top = screenStack[screenStack.length - 1];
+    setActive(top);
+    if (top === 'scr-evdetail') renderEvDetail();
+    if (top === 'scr-logdetail') renderLogDetail();
+    if (top === 'scr-persondetail') renderPersonDetail();
+  } else {
+    setActive(MAIN[mainScreen]);
+    if (mainScreen === 'hancho') renderHancho();
+    if (mainScreen === 'people') renderPeople();
+    if (mainScreen === 'calendar') renderCal();
+  }
+}
+
+// ── CALENDAR ──
+const _now = new Date();
+let cur = { y: _now.getFullYear(), m: _now.getMonth() + 1 };
+let selDate = todayStr();
+let touchX0 = 0, touchY0 = 0, swiping = false;
+
+function changeMonth(d) { cur.m += d; if (cur.m > 12) { cur.m = 1; cur.y++; } if (cur.m < 1) { cur.m = 12; cur.y--; } renderCal(); }
+function goToday() { const t = new Date(); cur.y = t.getFullYear(); cur.m = t.getMonth() + 1; selDate = todayStr(); renderCal(); }
+function selectDate(ds_) {
+  selDate = ds_;
+  document.querySelectorAll('.cal-cell.selected').forEach(el => el.classList.remove('selected'));
+  document.querySelectorAll('.cal-cell').forEach(el => {
+    if (el.getAttribute('onclick') && el.getAttribute('onclick').includes("'" + ds_ + "'")) {
+      if (!el.classList.contains('today')) el.classList.add('selected');
+    }
+  });
+  const DOW_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const selD = new Date(ds_ + 'T00:00:00');
+  const selLabel = (selD.getMonth() + 1) + '/' + selD.getDate() + ' ' + DOW_SHORT[selD.getDay()];
+  const selEvs = eventsOnDate(ds_);
+  const listHTML = '<div style="font-size:10px;font-weight:500;color:var(--ink2);margin:8px 0 5px;letter-spacing:0.2px;">' + selLabel + '</div>' + (selEvs.length ? selEvs.map(ev => renderEvCard(ev)).join('') : '<div style="font-size:12px;color:var(--ink3);padding:2px 0;">予定はありません</div>');
+  document.querySelectorAll('.cal-ev-list').forEach(list => list.innerHTML = listHTML);
+}
+
+const THEMES = [null, { bg: '#e8d8a8', accent: '#0a472a', stripe: '#d4c494', ink: '#0a472a', name: 'Jan.', ls: '-0.06em' }, { bg: '#792c4f', accent: '#ef5591', stripe: '#8a3d60', ink: '#ffd0e0', name: 'Feb.', ls: '-0.09em' }, { bg: '#98cf8f', accent: '#7182c9', stripe: '#84bb7b', ink: '#2a3a6a', name: 'Mar.', ls: '-0.07em' }, { bg: '#1E5C35', accent: '#F0A0B8', stripe: '#2A7045', ink: '#E8F5EC', name: 'Apr.', ls: '-0.12em' }, { bg: '#2A4E8C', accent: '#a62121', stripe: '#3A5E9C', ink: '#E8EEF8', name: 'May.', ls: '-0.12em' }, { bg: '#c9edb3', accent: '#fd674c', stripe: '#b5d99f', ink: '#3a2a20', name: 'Jun.', ls: '-0.07em' }, { bg: '#ff9f70', accent: '#0b3574', stripe: '#e88a5c', ink: '#0b3574', name: 'Jul.', ls: '-0.06em' }, { bg: '#badbd3', accent: '#98199b', stripe: '#a6c7bf', ink: '#3a1a3a', name: 'Aug.', ls: '-0.09em' }, { bg: '#e6d877', accent: '#8d3300', stripe: '#d2c463', ink: '#8d3300', name: 'Sep.', ls: '-0.09em' }, { bg: '#B090CC', accent: '#1A3A20', stripe: '#A080BC', ink: '#1A1A3A', name: 'Oct.', ls: '-0.12em' }, { bg: '#6A1020', accent: '#C0A020', stripe: '#7A1A2A', ink: '#FFF5E8', name: 'Nov.', ls: '-0.12em' }, { bg: '#36604e', accent: '#990a00', stripe: '#284a3a', ink: '#e8f5ec', name: 'Dec.', ls: '-0.09em' }];
+function getTheme(m) { return THEMES[m] || THEMES[1]; }
+const SCREEN_THEMES = { hancho: { bg: '#c9edb3', accent: '#fd674c', ink: '#3a2a20', title: 'Thanks Log.', ls: '-0.07em' }, people: { bg: '#e6d877', accent: '#8d3300', ink: '#8d3300', title: 'People.', ls: '-0.09em' }, notif: { bg: '#ff9f70', accent: '#0b3574', ink: '#0b3574', title: 'Remind.', ls: '-0.06em' } };
+function renderScreenHeader(name) {
+  const t = SCREEN_THEMES[name];
+  const wrap = document.getElementById(name + '-hdr-wrap');
+  if (!wrap || !t) return;
+  wrap.style.cssText = 'background:' + t.bg + ';padding:18px 16px 18px;flex-shrink:0;';
+  wrap.innerHTML = '<span style="font-family:\'Outfit\',sans-serif;font-weight:800;font-size:44px;line-height:1;color:' + t.accent + ';letter-spacing:' + t.ls + ';">' + t.title + '</span>';
+}
+
+function renderCal() {
+  const outer = document.getElementById('cal-outer');
+  if (!outer.querySelector('#cal-slider')) {
+    outer.innerHTML = '<div class="cal-slider" id="cal-slider"><div class="cal-page" id="cal-page-0"></div><div class="cal-page" id="cal-page-1"></div><div class="cal-page" id="cal-page-2"></div></div>';
+    attachSwipe();
+  }
+  renderSlider();
+}
+function renderSlider() {
+  const sl = document.getElementById('cal-slider'); if (!sl) return;
+  const months = [{ y: cur.y, m: cur.m - 1 }, { y: cur.y, m: cur.m }, { y: cur.y, m: cur.m + 1 }].map(o => { let { y, m } = o; if (m < 1) { m = 12; y--; } if (m > 12) { m = 1; y++; } return { y, m }; });
+  months.forEach(({ y, m }, i) => { const pg = document.getElementById('cal-page-' + i); if (pg) pg.innerHTML = buildMonthHTML(y, m); });
+  sl.style.transition = 'none'; sl.style.transform = 'translateX(-33.333%)';
+  sl.getBoundingClientRect();
+  requestAnimationFrame(() => requestAnimationFrame(placeAllEvBars));
+}
+
+function dateToMs(ds) { return new Date(ds + 'T00:00:00').getTime(); }
+function addDays(ds, n) { const d = new Date(ds + 'T00:00:00'); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function diffDays(a, b) { return Math.round((dateToMs(b) - dateToMs(a)) / 86400000); }
+function ds(y, m, d) { return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0'); }
+
+function evEffectiveDates(ev, y, m) {
+  let start = ev.date, end = ev.endDate || ev.date;
+  if (ev.repeat === 'yearly') {
+    const ed = new Date(ev.date + 'T00:00:00');
+    const span = diffDays(ev.date, end);
+    start = ds(y, ed.getMonth() + 1, ed.getDate());
+    end = span > 0 ? addDays(start, span) : start;
+    if (start < ev.date) return null;
+  }
+  return { start, end };
+}
+function eventsInMonth(y, m) {
+  const monthStart = ds(y, m, 1), monthEnd = ds(y, m, new Date(y, m, 0).getDate()), result = [];
+  events.forEach(ev => {
+    const eff = evEffectiveDates(ev, y, m); if (!eff) return;
+    const { start, end } = eff;
+    if (start <= monthEnd && end >= monthStart) result.push({ ...ev, effStart: start, effEnd: end });
+  });
+  // 祝日・記念日を追加
+  getHolidaysInMonth(y, m).forEach(h => result.push(h));
+  return result;
+}
+function eventsOnDate(ds_) {
+  const y = parseInt(ds_.slice(0, 4)), m = parseInt(ds_.slice(5, 7));
+  return eventsInMonth(y, m).filter(ev => ev.effStart <= ds_ && ev.effEnd >= ds_);
+}
+
+// ── 祝日・記念日 ──
+const HOLIDAY_COLOR = '#B0AAA4';
+
+// nWeekday: 第n月曜など (n=1始まり, dow=0:日..6:土)
+function nthWeekday(y, m, n, dow) {
+  let count = 0;
+  for (let d = 1; d <= 31; d++) {
+    const dt = new Date(y, m-1, d);
+    if (dt.getMonth() !== m-1) break;
+    if (dt.getDay() === dow) { count++; if (count === n) return ds(y, m, d); }
+  }
+  return null;
+}
+
+// 春分・秋分（簡易計算）
+function shunbun(y) {
+  const d = Math.floor(20.8431 + 0.242194 * (y - 1980) - Math.floor((y - 1980) / 4));
+  return ds(y, 3, d);
+}
+function shubun(y) {
+  const d = Math.floor(23.2488 + 0.242194 * (y - 1980) - Math.floor((y - 1980) / 4));
+  return ds(y, 9, d);
+}
+
+function getAnnualEvents(y) {
+  const H = HOLIDAY_COLOR;
+  const list = [];
+  const add = (date, title) => list.push({ id: 'h-'+date, date, endDate: date, effStart: date, effEnd: date, title, time: 'allday', color: H, people: [], repeat: 'yearly', memo: '', isHoliday: true });
+
+  // 固定祝日
+  add(ds(y,1,1),  '元旦');
+  add(ds(y,2,3),  '節分');
+  add(ds(y,2,11), '建国記念の日');
+  add(ds(y,2,14), 'バレンタインデー');
+  add(ds(y,3,3),  'ひなまつり');
+  add(ds(y,3,14), 'ホワイトデー');
+  add(shunbun(y), '春分の日');
+  add(ds(y,4,29), '昭和の日');
+  add(ds(y,5,3),  '憲法記念日');
+  add(ds(y,5,4),  'みどりの日');
+  add(ds(y,5,5),  'こどもの日');
+  add(ds(y,7,7),  '七夕');
+  add(ds(y,8,11), '山の日');
+  add(ds(y,9,1),  '防災の日');
+  add(shubun(y),  '秋分の日');
+  add(ds(y,10,31),'ハロウィン');
+  add(ds(y,11,3), '文化の日');
+  add(ds(y,11,15),'七五三');
+  add(ds(y,11,23),'勤労感謝の日');
+  add(ds(y,12,24),'クリスマスイブ');
+  add(ds(y,12,25),'クリスマス');
+  add(ds(y,12,31),'大晦日');
+
+  // 計算で出る祝日・記念日
+  const seijin = nthWeekday(y,1,2,1); if(seijin) add(seijin,'成人の日');
+  const kenpo = nthWeekday(y,2,2,1); if(kenpo) add(kenpo,'建国記念日前後（振替）');
+  const umi = nthWeekday(y,7,3,1); if(umi) add(umi,'海の日');
+  const keiro = nthWeekday(y,9,3,1); if(keiro) add(keiro,'敬老の日');
+  const taiiku = nthWeekday(y,10,2,1); if(taiiku) add(taiiku,'スポーツの日');
+  const haha = nthWeekday(y,5,2,0); if(haha) add(haha,'母の日');
+  const chichi = nthWeekday(y,6,3,0); if(chichi) add(chichi,'父の日');
+
+  return list;
+}
+
+// キャッシュ
+const _holidayCache = {};
+function getHolidaysInMonth(y, m) {
+  const key = y+'-'+m;
+  if (!_holidayCache[key]) {
+    const monthStart = ds(y,m,1), monthEnd = ds(y,m,new Date(y,m,0).getDate());
+    _holidayCache[key] = getAnnualEvents(y).filter(h => h.date >= monthStart && h.date <= monthEnd);
+  }
+  return _holidayCache[key];
+}
+
+let _calPageId = 0;
+function buildMonthHTML(y, m) {
+  const t = getTheme(m);
+  const first = new Date(y, m - 1, 1).getDay();
+  const days = new Date(y, m, 0).getDate();
+  const prev = new Date(y, m - 1, 0).getDate();
+  const td = todayStr();
+  const rows = Math.ceil((first + days) / 7);
+  const pid = 'cp' + (++_calPageId);
+  let h = '<div style="background:' + t.bg + ';padding:18px 16px 18px;flex-shrink:0;">';
+  h += '<div style="display:flex;justify-content:space-between;align-items:flex-end;">';
+  h += '<div style="display:flex;align-items:baseline;gap:6px;">';
+  h += '<span style="font-family:\'Outfit\',sans-serif;font-weight:800;font-size:44px;line-height:1;color:' + t.accent + ';letter-spacing:' + t.ls + ';">' + t.name + '</span>';
+  h += '<span style="font-size:13px;font-weight:500;opacity:0.6;padding-bottom:4px;font-family:\'DM Sans\',sans-serif;color:' + t.ink + ';">' + y + '</span>';
+  h += '</div><div style="display:flex;align-items:center;gap:5px;padding-bottom:2px;">';
+  h += '<button onclick="changeMonth(-1)" style="width:28px;height:28px;border-radius:50%;border:none;background:rgba(255,255,255,0.22);cursor:pointer;font-size:15px;color:' + t.ink + ';display:flex;align-items:center;justify-content:center;">‹</button>';
+  h += '<button onclick="goToday()" style="padding:3px 9px;border-radius:20px;border:1.5px solid rgba(255,255,255,0.38);background:transparent;font-size:10px;cursor:pointer;font-family:\'DM Sans\',sans-serif;color:' + t.ink + ';">今日</button>';
+  h += '<button onclick="changeMonth(1)" style="width:28px;height:28px;border-radius:50%;border:none;background:rgba(255,255,255,0.22);cursor:pointer;font-size:15px;color:' + t.ink + ';display:flex;align-items:center;justify-content:center;">›</button>';
+  h += '</div></div></div>';
+  h += '<div class="cal-dow-row">';
+  ['日', '月', '火', '水', '木', '金', '土'].forEach((d, i) => { h += '<div class="cal-dow-cell' + (i === 0 ? ' sun' : i === 6 ? ' sat' : '') + '">' + d + '</div>'; });
+  h += '</div>';
+  h += '<div style="height:1px;background:' + t.stripe + ';margin:0 10px;opacity:0.6;flex-shrink:0;"></div>';
+  h += '<div class="cal-grid-outer" id="go-' + pid + '" style="padding:0;">';
+  h += '<div class="cal-grid-base" style="grid-template-rows:repeat(' + rows + ',1fr);">';
+  for (let i = 0; i < first; i++) { const dow = i % 7; h += '<div class="cal-cell other' + (dow === 0 ? ' sun' : dow === 6 ? ' sat' : '') + '" onclick="selectDate(\'' + addDays(ds(y, m, 1), i - first) + '\')"><div class="cal-num">' + (prev - first + i + 1) + '</div></div>'; }
+  for (let d = 1; d <= days; d++) { const date = ds(y, m, d); const dow = (first + d - 1) % 7; const isTd = date === td, isSel = date === selDate && !isTd; h += '<div class="cal-cell' + (dow === 0 ? ' sun' : dow === 6 ? ' sat' : '') + (isTd ? ' today' : '') + (isSel ? ' selected' : '') + '" onclick="selectDate(\'' + date + '\')"><div class="cal-num" style="' + (isTd ? 'background:' + t.accent + ';color:#fff;' : '') + '">' + d + '</div></div>'; }
+  const trail = (7 - ((first + days) % 7)) % 7;
+  for (let i = 1; i <= trail; i++) { const dow = (first + days + i - 1) % 7; h += '<div class="cal-cell other' + (dow === 0 ? ' sun' : dow === 6 ? ' sat' : '') + '" onclick="selectDate(\'' + addDays(ds(y, m, days), i) + '\')"><div class="cal-num">' + i + '</div></div>'; }
+  h += '</div><div class="cal-ev-layer" id="el-' + pid + '"></div></div>';
+  const DOW_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const selD = new Date(selDate + 'T00:00:00');
+  const selLabel = (selD.getMonth() + 1) + '/' + selD.getDate() + ' ' + DOW_SHORT[selD.getDay()];
+  const selEvs = eventsOnDate(selDate);
+  h += '<div class="cal-ev-list"><div style="font-size:10px;font-weight:500;color:var(--ink2);margin:8px 0 5px;letter-spacing:0.2px;">' + selLabel + '</div>';
+  if (!selEvs.length) h += '<div style="font-size:12px;color:var(--ink3);padding:2px 0;">予定はありません</div>';
+  else selEvs.forEach(ev => h += renderEvCard(ev));
+  h += '</div>';
+  const monthEvs = eventsInMonth(y, m);
+  monthEvs.sort((a, b) => diffDays(b.effStart, b.effEnd) - diffDays(a.effStart, a.effEnd));
+  h += '<script data-pid="' + pid + '" data-rows="' + rows + '" data-first="' + first + '" data-days="' + days + '" data-ym="' + y + '-' + String(m).padStart(2, '0') + '" type="application/json" id="evdata-' + pid + '">' + JSON.stringify(monthEvs) + '<\/script>';
+  return h;
+}
+
+function placeEvBars(pid) {
+  const goEl = document.getElementById('go-' + pid), layerEl = document.getElementById('el-' + pid), dataEl = document.getElementById('evdata-' + pid);
+  if (!goEl || !layerEl || !dataEl) return;
+  const rows = parseInt(dataEl.dataset.rows), first = parseInt(dataEl.dataset.first), days = parseInt(dataEl.dataset.days), ym = dataEl.dataset.ym;
+  const monthEvs = JSON.parse(dataEl.textContent);
+  const rect = goEl.getBoundingClientRect();
+  if (rect.height < 10) { requestAnimationFrame(() => placeEvBars(pid)); return; }
+  const cellW = rect.width / 7, cellH = rect.height / rows;
+  const EV_H = 13, EV_GAP = 2, NUM_H = 30;
+  const MAX_SLOTS = Math.max(1, Math.floor((cellH - NUM_H) / (EV_H + EV_GAP)));
+  const monthStart = ym + '-01', monthEnd = ym + '-' + String(days).padStart(2, '0');
+  const slotMap = {};
+  const getSlot = (r, c) => slotMap[r + '*' + c] || 0;
+  const getSegSlot = (r, c, len) => { let mx = 0; for (let k = 0; k < len; k++) mx = Math.max(mx, getSlot(r, c + k)); return mx; };
+  const reserveSegSlot = (r, c, len, slot) => { for (let k = 0; k < len; k++) slotMap[r + '*' + (c + k)] = Math.max(getSlot(r, c + k), slot + 1); };
+  let bars = '';
+  monthEvs.forEach(ev => {
+    const effS = ev.effStart < monthStart ? monthStart : ev.effStart, effE = ev.effEnd > monthEnd ? monthEnd : ev.effEnd;
+    const isMulti = diffDays(ev.effStart, ev.effEnd) > 0;
+    let seg = effS;
+    while (seg <= effE) {
+      const ci = diffDays(monthStart, seg) + first, sRow = Math.floor(ci / 7), sCol = ci % 7;
+      const toSat = 6 - sCol, toEnd = diffDays(seg, effE), sLen = Math.min(toSat, toEnd) + 1;
+      const slot = getSegSlot(sRow, sCol, sLen);
+      if (slot < MAX_SLOTS) {
+        reserveSegSlot(sRow, sCol, sLen, slot);
+        const lx = sCol * cellW + 1, ty = sRow * cellH + NUM_H + slot * (EV_H + EV_GAP), w = Math.min(sLen * cellW - 2, rect.width - lx - 1);
+        const isS = seg === effS || seg === monthStart, isE = addDays(seg, sLen - 1) === effE || addDays(seg, sLen - 1) === monthEnd;
+        const cls = isS && isE ? 'single' : isS ? 'start' : isE ? 'end' : 'mid';
+        bars += '<div class="cal-ev-bar ' + cls + '" onclick="openEvDetail(' + ev.id + ')" style="left:' + lx.toFixed(1) + 'px;top:' + ty.toFixed(1) + 'px;width:' + w.toFixed(1) + 'px;background:' + ev.color + 'ee;color:#fff;">' + (isS ? esc(ev.title) : '') + '</div>';
+      }
+      seg = addDays(seg, sLen);
+    }
+  });
+  layerEl.innerHTML = bars;
+}
+function placeAllEvBars() { document.querySelectorAll('[id^="evdata-"]').forEach(el => { placeEvBars(el.id.replace('evdata-', '')); }); }
+
+function attachSwipe() {
+  const outer = document.getElementById('cal-outer');
+  if (!outer || outer._sw) return; outer._sw = true;
+  outer.addEventListener('touchstart', e => { touchX0 = e.touches[0].clientX; touchY0 = e.touches[0].clientY; swiping = false; }, { passive: true });
+  outer.addEventListener('touchmove', e => {
+    const dx = e.touches[0].clientX - touchX0, dy = e.touches[0].clientY - touchY0;
+    if (!swiping && Math.abs(dy) > Math.abs(dx) + 4) return;
+    swiping = true;
+    const sl = document.getElementById('cal-slider');
+    if (sl) { sl.style.transition = 'none'; sl.style.transform = 'translateX(calc(-33.333% + ' + dx + 'px))'; }
+  }, { passive: true });
+  outer.addEventListener('touchend', e => {
+    if (!swiping) { swiping = false; return; }
+    const dx = e.changedTouches[0].clientX - touchX0, sl = document.getElementById('cal-slider');
+    if (Math.abs(dx) > 50) {
+      const dir = dx < 0 ? 1 : -1;
+      if (sl) { sl.style.transition = 'transform 0.32s cubic-bezier(0.25,0.46,0.45,0.94)'; sl.style.transform = 'translateX(' + (dir < 0 ? '0%' : '-66.666%') + ')'; }
+      setTimeout(() => changeMonth(dir), 330);
+    } else {
+      if (sl) { sl.style.transition = 'transform 0.22s ease'; sl.style.transform = 'translateX(-33.333%)'; }
+    }
+    swiping = false;
+  }, { passive: true });
+}
+
+function renderEvCard(ev) {
+  const chips = ev.people.map(pid => { const p = getP(pid); if (!p) return ''; const pnd = pendingLogs(pid); return '<span class="p-chip">' + esc(p.name) + '</span>' + (pnd.length ? '<span class="alert-badge" style="display:inline-flex;align-items:center;gap:3px;">' + FLAG_SVG + pnd.length + '</span>' : ''); }).join('');
+  return '<div class="ev-card" onclick="openEvDetail(' + ev.id + ')"><div class="ev-card-inner"><div class="ev-color-bar" style="background:' + ev.color + ';"></div><div class="ev-card-body"><div class="ev-card-title">' + esc(ev.title) + '</div><div class="ev-card-time">' + (ev.time === 'allday' ? '終日' : ev.time) + (ev.repeat !== 'none' ? ' · ' + REPEAT[ev.repeat] : '') + '</div><div class="ev-people">' + chips + '</div></div></div></div>';
+}
+
+// ── EVENT DETAIL ──
+let selEventId = null;
+function openEvDetail(id) { selEventId = id; renderEvDetail(); push('scr-evdetail'); }
+function renderEvDetail() {
+  const ev = events.find(e => e.id === selEventId); if (!ev) return;
+  const hasPnd = ev.people.some(p => pendingLogs(p).length > 0);
+  let h = '<div class="detail-hero"><div class="detail-color-strip" style="background:' + ev.color + ';"></div><div class="detail-title">' + esc(ev.title) + '</div><div class="detail-meta">' + (ev.time === 'allday' ? '終日' : ev.time) + ' · ' + (ev.repeat !== 'none' ? REPEAT[ev.repeat] : '繰り返しなし') + '</div><div class="ev-people" style="margin-bottom:10px;">';
+  ev.people.forEach(pid => { const p = getP(pid); if (p) h += '<span class="p-chip">' + esc(p.name) + '</span>'; });
+  h += '</div><div style="display:flex;gap:6px;"><button class="btn-ghost" onclick="openModal(\'event\',' + ev.id + ')">編集</button><button class="btn-danger" onclick="deleteEvent(' + ev.id + ')">削除</button></div></div>';
+  h += '<div class="section-hdr"><span class="section-title">メモ</span></div><div class="memo-box">' + (ev.memo ? esc(ev.memo) : '<span style="color:var(--ink3);">メモなし</span>') + '</div>';
+  if (hasPnd) {
+    h += '<div class="section-hdr"><span class="section-title" style="display:flex;align-items:center;gap:5px;color:#ec6a52;">' + FLAG_SVG + ' 渡すもの・伝えること</span></div>';
+    ev.people.forEach(pid => pendingLogs(pid).forEach(log => { const p = getP(pid); const amt = log.amount ? '<span style="font-size:11px;color:#7A5700;margin-left:4px;">' + fmtAmt(log.amount) + '</span>' : ''; h += '<div class="log-card" onclick="openLogDetail(' + log.id + ')">' + iconHTML(log.cat) + '<div class="log-body"><div class="log-title-text">' + esc(log.title) + amt + '</div><div class="log-meta">' + esc(p.name) + ' · ' + log.date + '</div></div><span class="log-tag ' + CAT[log.cat].cls + '">' + CAT[log.cat].label + '</span></div>'; }));
+  }
+  const shownIds = hasPnd ? ev.people.flatMap(pid => pendingLogs(pid).map(l => l.id)) : [];
+  const done = []; ev.people.forEach(pid => logs.filter(l => l.personId === pid && l.done && !shownIds.includes(l.id)).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 4).forEach(l => done.push({ log: l, p: getP(pid) })));
+  if (done.length) { h += '<div class="section-hdr"><span class="section-title">完了済みログ</span><button class="add-link" onclick="openModal(\'log\',null)">+ 追加</button></div>'; done.forEach(({ log, p }) => { const rl = log.replyTo ? logs.find(l => l.id === log.replyTo) : null; const amt = log.amount ? '<span style="font-size:11px;color:#7A5700;margin-left:4px;">' + fmtAmt(log.amount) + '</span>' : ''; h += '<div class="log-card" onclick="openLogDetail(' + log.id + ')">' + iconHTML(log.cat) + '<div class="log-body"><div class="log-title-text">' + esc(log.title) + amt + '</div><div class="log-meta">' + log.date + '</div>' + (rl ? '<div class="reply-card"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#4A2FAA" stroke-width="2"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>' + esc(rl.title) + 'へのお返し</div>' : '') + '</div><span class="status-pill pill-done">完了</span></div>'; }); }
+  else { h += '<div class="section-hdr"><span class="section-title">ログ</span><button class="add-link" onclick="openModal(\'log\',null)">+ 追加</button></div>'; if (!hasPnd) h += '<div style="font-size:12px;color:var(--ink3);padding:4px 0;">まだ記録がありません</div>'; }
+  document.getElementById('evdetail-body').innerHTML = h;
+}
+async function deleteEvent(id) {
+  setSyncing(true);
+  await db.from('events').delete().eq('id', id);
+  events = events.filter(e => e.id !== id);
+  setSyncing(false);
+  goBack();
+}
+
+// ── HANCHO ──
+let hFilter = 'all', hPersonFilter = new Set();
+function setHF(f, el) { hFilter = f; document.querySelectorAll('#hancho-cat-filter .hf-btn').forEach(b => b.classList.remove('active')); el.classList.add('active'); renderHancho(); }
+function buildPersonFilterChips() {
+  const wrap = document.getElementById('hancho-person-filter'); if (!wrap) return;
+  wrap.innerHTML = people.map(p => '<button class="hf-btn' + (hPersonFilter.has(p.id) ? ' active' : '') + '" onclick="togglePersonFilter(' + p.id + ',this)">' + esc(p.name) + '</button>').join('');
+}
+function togglePersonFilter(id, el) { if (hPersonFilter.has(id)) hPersonFilter.delete(id); else hPersonFilter.add(id); el.classList.toggle('active', hPersonFilter.has(id)); renderHancho(); }
+function renderHancho() {
+  const kw = (document.getElementById('hancho-search')?.value || '').trim().toLowerCase();
+  let list = [...logs].sort((a, b) => b.date.localeCompare(a.date)).filter(l => getP(l.personId));
+  if (hFilter === 'pending') list = list.filter(l => !l.done);
+  else if (hFilter !== 'all') list = list.filter(l => l.cat === hFilter);
+  if (hPersonFilter.size > 0) list = list.filter(l => hPersonFilter.has(l.personId));
+  if (kw) list = list.filter(l => l.title.toLowerCase().includes(kw) || (getP(l.personId)?.name.toLowerCase().includes(kw)));
+  let h = '';
+  list.forEach(log => {
+    const p = getP(log.personId), rl = log.replyTo ? logs.find(l => l.id === log.replyTo) : null, amt = log.amount ? '<span style="font-size:11px;color:var(--ink2);margin-left:4px;">' + fmtAmt(log.amount) + '</span>' : '';
+    const dispTag = log.displayName ? ' ／ ' + esc(log.displayName) : '';
+    h += '<div class="log-card" onclick="openLogDetail(' + log.id + ')">' + iconHTML(log.cat) + '<div class="log-body"><div class="log-title-text">' + esc(log.title) + amt + '</div><div class="log-meta">' + esc(p.name) + ' · ' + log.date + dispTag + '</div>' + (rl ? '<div class="reply-card"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--ink2)" stroke-width="2"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>' + esc(rl.title) + 'へのお返し</div>' : '') + '</div><div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0;"><span class="log-tag ' + CAT[log.cat].cls + '">' + CAT[log.cat].label + '</span><button class="status-pill ' + (log.done ? 'pill-done' : 'pill-pending') + '" onclick="event.stopPropagation();quickDone(' + log.id + ')">' + (log.done ? '完了' : '未完了') + '</button></div></div>';
+  });
+  document.getElementById('hancho-body').innerHTML = h || '<div style="font-size:13px;color:var(--ink3);text-align:center;padding:32px 0;">記録がありません</div>';
+}
+async function quickDone(id) {
+  const l = logs.find(x => x.id === id); if (!l) return;
+  l.done = !l.done;
+  setSyncing(true);
+  await db.from('logs').update({ done: l.done }).eq('id', id);
+  setSyncing(false);
+  renderHancho();
+}
+
+// ── LOG DETAIL ──
+let selLogId = null;
+function openLogDetail(id) { selLogId = id; renderLogDetail(); push('scr-logdetail'); }
+function renderLogDetail() {
+  const log = logs.find(l => l.id === selLogId); if (!log) return;
+  const p = getP(log.personId), rl = log.replyTo ? logs.find(l => l.id === log.replyTo) : null;
+  let h = '<div class="detail-hero"><div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;"><div class="log-icon" style="background:' + ICON_BG[log.cat] + ';width:46px;height:46px;border-radius:13px;">' + ICONS[log.cat] + '</div><div style="flex:1;min-width:0;"><span class="log-tag ' + CAT[log.cat].cls + '" style="display:inline-block;margin-bottom:5px;">' + CAT[log.cat].label + '</span><div class="detail-title" style="font-size:16px;">' + esc(log.title) + '</div>' + (log.amount ? '<div style="font-size:15px;font-weight:600;color:var(--ink2);margin-top:2px;">' + fmtAmt(log.amount) + '</div>' : '') + '<div style="font-size:11px;color:var(--ink2);margin-top:3px;">' + (p ? esc(p.name) + ' · ' : '') + log.date + '</div>' + (rl ? '<div class="reply-card" style="margin-top:5px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--ink2)" stroke-width="2"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>' + esc(rl.title) + ' へのお返し</div>' : '') + '</div></div><div style="display:flex;gap:6px;"><button class="btn-ghost" onclick="openModal(\'log\',' + log.id + ')">編集</button><button class="btn-danger" onclick="deleteLog(' + log.id + ')">削除</button></div></div>';
+  h += '<div class="toggle-wrap"><span class="toggle-label" id="toggle-lbl">' + (log.done ? '完了済み' : '未完了') + '</span><div class="toggle' + (log.done ? ' on' : '') + '" id="done-toggle" onclick="toggleDone(' + log.id + ')"></div></div>';
+  if (log.memo) h += '<div class="section-hdr"><span class="section-title">メモ</span></div><div class="memo-box">' + esc(log.memo) + '</div>';
+  h += '<div class="section-hdr"><span class="section-title">紐付け</span><button class="add-link" onclick="openModal(\'link\',' + log.id + ')">変更</button></div>';
+  h += rl ? '<div class="log-card">' + iconHTML(rl.cat) + '<div class="log-body"><div class="log-title-text">' + esc(rl.title) + '</div><div class="log-meta">' + (getP(rl.personId) ? esc(getP(rl.personId).name) : '') + ' · ' + rl.date + '</div></div></div>' : '<div style="font-size:12px;color:var(--ink3);padding:4px 0;">紐付けなし</div>';
+  document.getElementById('logdetail-body').innerHTML = h;
+}
+async function toggleDone(id) {
+  const log = logs.find(l => l.id === id); if (!log) return;
+  log.done = !log.done;
+  const tog = document.getElementById('done-toggle'), lbl = document.getElementById('toggle-lbl');
+  if (tog) tog.classList.toggle('on', log.done); if (lbl) lbl.textContent = log.done ? '完了済み' : '未完了';
+  setSyncing(true);
+  await db.from('logs').update({ done: log.done }).eq('id', id);
+  setSyncing(false);
+}
+async function deleteLog(id) {
+  setSyncing(true);
+  await db.from('logs').delete().eq('id', id);
+  logs = logs.filter(l => l.id !== id);
+  setSyncing(false);
+  goBack();
+}
+
+// ── PEOPLE ──
+function renderPeople() {
+  const sorted = [...people].sort((a,b) => (a.sortOrder||0) - (b.sortOrder||0));
+  let h = '';
+  sorted.forEach((p, idx) => {
+    const pLogs = logs.filter(l => l.personId === p.id), pnd = pLogs.filter(l => !l.done).length;
+    h += '<div class="people-card" id="pc-'+p.id+'" style="user-select:none;">';
+    h += '<div style="display:flex;flex-direction:column;gap:2px;margin-right:8px;flex-shrink:0;">';
+    h += '<button onclick="event.stopPropagation();movePerson('+p.id+',-1)" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink3);line-height:1;font-size:14px;">▲</button>';
+    h += '<button onclick="event.stopPropagation();movePerson('+p.id+',1)" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink3);line-height:1;font-size:14px;">▼</button>';
+    h += '</div>';
+    h += '<div style="flex:1;min-width:0;" onclick="openPersonDetail('+p.id+')">';
+    h += '<div style="font-size:14px;font-weight:600;color:var(--inkd);">' + esc(p.name) + '</div>';
+    h += '<div style="font-size:11px;color:var(--ink2);">' + esc(p.rel) + '</div>';
+    h += '<div style="display:flex;gap:6px;margin-top:4px;align-items:center;"><span style="font-size:11px;color:var(--ink3);">Log ' + pLogs.length + '件</span>' + (pnd ? '<span class="status-pill pill-pending" style="cursor:default;">未完了 ' + pnd + '件</span>' : '') + '</div>';
+    h += '</div>';
+    h += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink3)" stroke-width="2" onclick="openPersonDetail('+p.id+')"><polyline points="9 18 15 12 9 6"/></svg>';
+    h += '</div>';
+  });
+  document.getElementById('people-body').innerHTML = h || '<div style="font-size:13px;color:var(--ink3);text-align:center;padding:32px 0;">+ から人を登録してください</div>';
+}
+async function movePerson(id, dir) {
+  const sorted = [...people].sort((a,b) => (a.sortOrder||0) - (b.sortOrder||0));
+  const idx = sorted.findIndex(p => p.id === id);
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= sorted.length) return;
+  const tmp = sorted[idx]; sorted[idx] = sorted[newIdx]; sorted[newIdx] = tmp;
+  sorted.forEach((p, i) => { p.sortOrder = i; });
+  setSyncing(true);
+  await Promise.all(sorted.map(p => db.from('people').update({ sort_order: p.sortOrder }).eq('id', p.id)));
+  setSyncing(false);
+  renderPeople();
+}
+let selPersonId = null;
+function openPersonDetail(id) { selPersonId = id; renderPersonDetail(); push('scr-persondetail'); }
+function renderPersonDetail() {
+  const p = getP(selPersonId); if (!p) return;
+  const pLogs = logs.filter(l => l.personId === p.id).sort((a, b) => b.date.localeCompare(a.date)), pnd = pLogs.filter(l => !l.done).length;
+  let h = '<div class="person-hero"><div style="font-size:20px;font-weight:600;color:var(--inkd);margin-bottom:2px;">' + esc(p.name) + '</div><div style="font-size:11px;color:var(--ink2);">' + esc(p.rel) + '</div><div style="display:flex;gap:8px;align-items:center;margin-top:6px;"><span style="font-size:12px;color:var(--ink2);">Log <b>' + pLogs.length + '</b>件</span>' + (pnd ? '<span class="status-pill pill-pending" style="cursor:default;font-size:10px;">未完了 ' + pnd + '件</span>' : '') + '</div><div style="margin-top:10px;display:flex;gap:6px;width:100%;"><button class="btn-ghost" onclick="openModal(\'person\',' + p.id + ')">編集</button><button class="btn-primary" onclick="openModal(\'log\',null)">ログを追加</button></div></div>';
+  h += '<div class="section-hdr"><span class="section-title">ログ一覧</span></div>';
+  if (!pLogs.length) h += '<div style="font-size:12px;color:var(--ink3);padding:4px 0;">まだ記録がありません</div>';
+  pLogs.forEach(log => { const rl = log.replyTo ? logs.find(l => l.id === log.replyTo) : null; const amt = log.amount ? '<span style="font-size:11px;color:var(--ink2);margin-left:4px;">' + fmtAmt(log.amount) + '</span>' : ''; const dn = log.displayName ? ' ／ ' + esc(log.displayName) : ''; h += '<div class="log-card" onclick="openLogDetail(' + log.id + ')">' + iconHTML(log.cat) + '<div class="log-body"><div class="log-title-text">' + esc(log.title) + amt + '</div><div class="log-meta">' + log.date + dn + '</div>' + (rl ? '<div class="reply-card" style="font-size:10px;padding:4px 6px;"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--ink2)" stroke-width="2"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>' + esc(rl.title) + '</div>' : '') + '</div><div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;"><span class="log-tag ' + CAT[log.cat].cls + '">' + CAT[log.cat].label + '</span><span class="status-pill ' + (log.done ? 'pill-done' : 'pill-pending') + '">' + (log.done ? '完了' : '未完了') + '</span></div></div>'; });
+  document.getElementById('persondetail-body').innerHTML = h;
+}
+
+// ── REMIND ──
+const REMIND_DAYS = { kari: 30, kashi: 60, itadaki: 14, arigato: 21 };
+const REMIND_MSGS = { kari: n => '「' + n + '」を借りたまま' + REMIND_DAYS.kari + '日以上経過しています', kashi: n => '「' + n + '」を貸したまま' + REMIND_DAYS.kashi + '日以上経過しています', itadaki: n => '「' + n + '」のお返しがまだです（' + REMIND_DAYS.itadaki + '日以上）', arigato: n => '「' + n + '」のお礼がまだ伝えられていません（' + REMIND_DAYS.arigato + '日以上）' };
+function buildRemindItems() {
+  const today = new Date(), items = [];
+  logs.filter(l => !l.done && REMIND_DAYS[l.cat]).forEach(l => {
+    const days = Math.floor((today - new Date(l.date + 'T00:00:00')) / 86400000);
+    if (days >= REMIND_DAYS[l.cat]) { const p = getP(l.personId); items.push({ type: 'log', logId: l.id, msg: REMIND_MSGS[l.cat](l.title), sub: (p ? p.name + ' · ' : '') + days + '日経過', days }); }
+  });
+  const in14 = new Date(today); in14.setDate(today.getDate() + 14);
+  events.filter(e => e.repeat === 'yearly').forEach(ev => {
+    const ed = new Date(ev.date + 'T00:00:00');
+    const thisYear = new Date(today.getFullYear(), ed.getMonth(), ed.getDate());
+    const diff = Math.floor((thisYear - today) / 86400000);
+    if (diff >= 0 && diff <= 14) items.push({ type: 'event', evId: ev.id, msg: '「' + ev.title + '」まで' + diff + '日です', sub: '記念日・誕生日のお知らせ', days: diff });
+  });
+  items.sort((a, b) => a.days - b.days);
+  return items;
+}
+function renderNotif() {
+  renderScreenHeader('notif');
+  const items = buildRemindItems();
+  let h = '';
+  if (!items.length) { h = '<div style="font-size:13px;color:var(--ink3);text-align:center;padding:40px 16px;">未完了のリマインドはありません</div>'; }
+  else { items.forEach((item, i) => { h += '<div class="log-card" onclick="openRemindDetail(' + i + ')" style="align-items:center;"><div style="width:32px;height:32px;border-radius:9px;background:var(--c2);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink2)" stroke-width="1.8"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg></div><div class="log-body"><div class="log-title-text">' + esc(item.msg) + '</div><div class="log-meta">' + esc(item.sub) + '</div></div>' + (item.type === 'log' ? '<button class="status-pill pill-pending" onclick="event.stopPropagation();completeRemind(' + i + ')">完了</button>' : '') + '</div>'; }); }
+  document.getElementById('notif-body').innerHTML = h;
+}
+let remindItems = [];
+function openRemindDetail(idx) { remindItems = buildRemindItems(); const item = remindItems[idx]; if (!item) return; if (item.type === 'log') openLogDetail(item.logId); else if (item.type === 'event') openEvDetail(item.evId); }
+async function completeRemind(idx) {
+  remindItems = buildRemindItems(); const item = remindItems[idx]; if (!item || item.type !== 'log') return;
+  const log = logs.find(l => l.id === item.logId); if (!log) return;
+  log.done = true;
+  setSyncing(true);
+  await db.from('logs').update({ done: true }).eq('id', log.id);
+  setSyncing(false);
+  renderNotif();
+}
+
+// ── MODAL ──
+let modalType = '', editId = null, selColorVal = '', selRepeatVal = 'none', selReplyId = null;
+function openModal(type, id) {
+  modalType = type; editId = id; selColorVal = ''; selRepeatVal = 'none'; selReplyId = null;
+  // 編集時は既存の値をセット
+  if (type === 'event' && id) {
+    const ev = events.find(e => e.id === id);
+    if (ev) { selColorVal = ev.color || ''; selRepeatVal = ev.repeat || 'none'; }
+  }
+  const inner = document.getElementById('modal-inner');
+  if (type === 'event') inner.innerHTML = buildEventForm(id);
+  else if (type === 'log') inner.innerHTML = buildLogForm(id);
+  else if (type === 'person') inner.innerHTML = buildPersonForm(id);
+  else if (type === 'link') inner.innerHTML = buildLinkForm(id);
+  document.getElementById('modal-overlay').classList.add('open');
+  const sheet = document.getElementById('modal-sheet');
+  if (sheet) {
+    sheet._swipeY0 = 0; sheet._swipeDy = 0; sheet._tracking = false;
+    sheet.ontouchstart = e => { if (e.touches[0].clientY - sheet.getBoundingClientRect().top > 48) return; sheet._swipeY0 = e.touches[0].clientY; sheet._tracking = true; sheet.style.transition = 'none'; };
+    sheet.ontouchmove = e => { if (!sheet._tracking) return; const dy = Math.max(0, e.touches[0].clientY - sheet._swipeY0); sheet._swipeDy = dy; sheet.style.transform = 'translateY(' + dy + 'px)'; };
+    sheet.ontouchend = () => { if (!sheet._tracking) return; sheet._tracking = false; sheet.style.transition = ''; sheet.style.transform = ''; if (sheet._swipeDy > 80) closeModal(); sheet._swipeDy = 0; };
+  }
+  if (type === 'log') { setTimeout(() => updateRC(editId ? (logs.find(l => l.id === editId) || {}).replyTo : null), 50); initPersonField(); }
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+function closeModalOutside(e) { if (e.target === document.getElementById('modal-overlay')) closeModal(); }
+
+function buildEventForm(id) {
+  const ev = id ? events.find(e => e.id === id) : null, sc = ev ? ev.color : null;
+  const req = '<span style="color:#ec6a52;margin-left:2px;">*</span>';
+  let h = '<div class="modal-title">' + (ev ? '予定を編集' : '予定を追加') + '</div>';
+  h += '<div class="field"><label>タイトル' + req + '</label><input id="ef-title" value="' + esc(ev?.title || '') + '" placeholder="例：田中さんとランチ"></div>';
+  h += '<div class="field"><label>期間' + req + '</label><div style="display:flex;gap:8px;align-items:center;"><input id="ef-date" type="date" value="' + (ev ? ev.date : selDate) + '" style="flex:1;font-size:16px;"><span style="font-size:12px;color:var(--ink3);">〜</span><input id="ef-enddate" type="date" value="' + (ev?.endDate || ev?.date || selDate) + '" style="flex:1;font-size:16px;"></div></div>';
+  h += '<div class="field"><label>時間（終日は空欄）</label><input id="ef-time" value="' + (ev && ev.time !== 'allday' ? ev.time : '') + '" placeholder="12:00" inputmode="numeric" style="max-width:140px;"></div>';
+  h += '<div class="field"><label>色' + req + '</label><div class="color-row" id="ef-color-row">' + COLORS.map(c => '<div class="color-dot' + (sc === c ? ' sel' : '') + '" style="background:' + c + ';" onclick="pickColor(\'' + c + '\',this)"></div>').join('') + '</div><div id="ef-color-err" style="font-size:11px;color:#ec6a52;margin-top:4px;display:none;">色を選択してください</div></div>';
+  h += '<div class="field"><label>繰り返し</label><div class="repeat-row">' + Object.entries(REPEAT).map(([k, v]) => '<button class="repeat-btn' + ((ev ? ev.repeat : selRepeatVal || 'none') === k ? ' active' : '') + '" data-key="' + k + '" onclick="pickRepeat(\'' + k + '\',this)">' + v + '</button>').join('') + '</div></div>';
+  h += '<div class="field"><label>一緒にいる人</label><div class="person-select" id="ef-people">' + people.map(p => '<div class="ps-chip' + (ev && ev.people.includes(p.id) ? ' sel' : '') + '" onclick="this.classList.toggle(\'sel\')">' + esc(p.name) + '</div>').join('') + '<div class="ps-chip" style="border-style:dashed;" onclick="quickAddP(this)">+ 新しい人</div></div></div>';
+  h += '<div class="field"><label>メモ</label><textarea id="ef-memo">' + esc(ev?.memo || '') + '</textarea></div>';
+  h += '<div class="modal-actions"><button class="btn-secondary" onclick="closeModal()">キャンセル</button><button class="btn-primary" onclick="saveEvent()">保存</button></div>';
+  return h;
+}
+function buildLogForm(id) {
+  const log = id ? logs.find(l => l.id === id) : null, prePid = log ? log.personId : (selPersonId || people[0]?.id || null);
+  let h = '<div class="modal-title">' + (log ? 'ログを編集' : 'New Log') + '</div>';
+  h += '<div class="field"><label>カテゴリ</label><select id="lf-cat" onchange="onCC()">' + Object.entries(CAT).map(([k, v]) => '<option value="' + k + '"' + (log && log.cat === k ? ' selected' : '') + '>' + v.label + '</option>').join('') + '</select></div>';
+  h += '<div class="field"><label>内容</label><input id="lf-title" value="' + esc(log?.title || '') + '" placeholder="例：誕生日プレゼント（財布）"></div>';
+  h += '<div class="field"><label>メモ（任意）</label><textarea id="lf-memo" placeholder="備考など">' + esc(log?.memo || '') + '</textarea></div>';
+  const amtShow = log ? (log.cat === 'kari' || log.cat === 'kashi' || log.cat === 'okuri' || log.cat === 'itadaki') : true;
+  h += '<div class="field" id="lf-amt-f" style="' + (amtShow ? '' : 'display:none;') + '"><label>金額（任意）</label><input id="lf-amount" type="number" inputmode="numeric" value="' + (log?.amount || '') + '"></div>';
+  h += '<div class="field"><label>相手</label><select id="lf-person" onchange="onPersonChange()">' + people.map(p => '<option value="' + p.id + '"' + (prePid === p.id ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('') + '</select></div>';
+  h += '<div class="field" id="lf-dispname-f" style="display:none;"><label>表示名（任意）</label><input id="lf-dispname" value="' + esc(log?.display_name || '') + '" placeholder="例：会社のみなさん"></div>';
+  h += '<div class="field"><label>日付</label><input id="lf-date" type="date" value="' + (log ? log.date : todayStr()) + '"></div>';
+  h += '<div class="field"><label>紐付け（任意）</label><div id="lf-rc" class="reply-candidates"></div></div>';
+  h += '<div class="modal-actions"><button class="btn-secondary" onclick="closeModal()">キャンセル</button><button class="btn-primary" onclick="saveLog()">保存</button></div>';
+  return h;
+}
+function onCC() { const v = document.getElementById('lf-cat')?.value, f = document.getElementById('lf-amt-f'); if (f) f.style.display = (v === 'kari' || v === 'kashi' || v === 'okuri' || v === 'itadaki') ? '' : 'none'; updateRC(null); }
+function onPersonChange() {
+  const sel = document.getElementById('lf-person');
+  const p = people.find(x => x.id === parseInt(sel?.value));
+  const df = document.getElementById('lf-dispname-f');
+  if (df) df.style.display = (p && p.name === 'その他') ? '' : 'none';
+  updateRC(null);
+}
+function initPersonField() {
+  // 初期表示時にその他が選ばれていたら表示名欄を出す
+  setTimeout(() => {
+    const sel = document.getElementById('lf-person');
+    if (!sel) return;
+    const p = people.find(x => x.id === parseInt(sel.value));
+    const df = document.getElementById('lf-dispname-f');
+    if (df) df.style.display = (p && p.name === 'その他') ? '' : 'none';
+  }, 60);
+}
+function updateRC(pre) {
+  const pEl = document.getElementById('lf-person'), listEl = document.getElementById('lf-rc'); if (!pEl || !listEl) return;
+  const pid = parseInt(pEl.value), cur = pre !== undefined ? pre : (editId ? (logs.find(l => l.id === editId) || {}).replyTo : null), cands = logs.filter(l => l.personId === pid && l.id !== editId).sort((a,b) => b.date.localeCompare(a.date)).slice(0,30);
+  listEl.innerHTML = '<div class="reply-cand-none' + (cur == null && selReplyId === null ? ' sel' : '') + '" onclick="selReplyId=0;document.querySelectorAll(\'.reply-cand,.reply-cand-none\').forEach(e=>e.classList.remove(\'sel\'));this.classList.add(\'sel\');">紐付けなし</div>' + cands.map(c => '<div class="reply-cand' + ((selReplyId === c.id || (selReplyId === null && cur === c.id)) ? ' sel' : '') + '" onclick="selReplyId=' + c.id + ';document.querySelectorAll(\'.reply-cand,.reply-cand-none\').forEach(e=>e.classList.remove(\'sel\'));this.classList.add(\'sel\');">' + CAT[c.cat].label + ' · ' + esc(c.title) + ' (' + c.date + ')</div>').join('');
+}
+function buildLinkForm(lid) {
+  const log = logs.find(l => l.id === lid); if (!log) return '';
+  const cands = logs.filter(l => l.personId === log.personId && l.id !== lid);
+  return '<div class="modal-title">紐付けを変更</div><div style="font-size:12px;color:var(--ink2);margin-bottom:10px;">「' + esc(log.title) + '」の関連ログを選んでください</div><div class="reply-candidates"><div class="reply-cand-none' + (log.replyTo == null ? ' sel' : '') + '" onclick="selReplyId=0;document.querySelectorAll(\'.reply-cand,.reply-cand-none\').forEach(e=>e.classList.remove(\'sel\'));this.classList.add(\'sel\');">紐付けなし</div>' + cands.map(c => '<div class="reply-cand' + (log.replyTo === c.id ? ' sel' : '') + '" onclick="selReplyId=' + c.id + ';document.querySelectorAll(\'.reply-cand,.reply-cand-none\').forEach(e=>e.classList.remove(\'sel\'));this.classList.add(\'sel\');">' + CAT[c.cat].label + ' · ' + esc(c.title) + ' (' + c.date + ')</div>').join('') + '</div><div class="modal-actions" style="margin-top:12px;"><button class="btn-secondary" onclick="closeModal()">キャンセル</button><button class="btn-primary" onclick="saveLink(' + lid + ')">保存</button></div>';
+}
+function buildPersonForm(id) {
+  const p = id ? people.find(x => x.id === id) : null, sc = p ? p.color : COLORS[0];
+  let h = '<div class="modal-title">' + (p ? '人を編集' : 'New People') + '</div>';
+  h += '<div class="field"><label>名前</label><input id="pf-name" value="' + esc(p?.name || '') + '" placeholder="例：田中さん"></div>';
+  h += '<div class="field"><label>関係</label><input id="pf-rel" value="' + esc(p?.rel || '') + '" placeholder="例：友人、家族"></div>';
+  h += '<div class="field"><label>カラー</label><div class="color-row">' + COLORS.map(c => '<div class="color-dot' + (c === sc ? ' sel' : '') + '" style="background:' + c + ';" onclick="pickColor(\'' + c + '\',this)"></div>').join('') + '</div></div>';
+  h += p ? '<div class="modal-actions"><button class="btn-danger" onclick="deletePerson(' + p.id + ')">削除</button><button class="btn-primary" onclick="savePerson()">保存</button></div>' : '<div class="modal-actions"><button class="btn-secondary" onclick="closeModal()">キャンセル</button><button class="btn-primary" onclick="savePerson()">保存</button></div>';
+  return h;
+}
+let _afterPersonAdd = null;
+let _savedEventForm = null;
+function quickAddP(el) {
+  // 入力内容を保存
+  _savedEventForm = {
+    title: document.getElementById('ef-title')?.value || '',
+    date: document.getElementById('ef-date')?.value || '',
+    enddate: document.getElementById('ef-enddate')?.value || '',
+    time: document.getElementById('ef-time')?.value || '',
+    memo: document.getElementById('ef-memo')?.value || '',
+    color: selColorVal || (document.querySelector('#ef-color-row .color-dot.sel')?.style.backgroundColor || ''),
+    repeat: selRepeatVal,
+    people: Array.from(document.querySelectorAll('#ef-people .ps-chip.sel')).map(e => e.textContent.trim()),
+  };
+  closeModal();
+  openModal('person', null);
+  _afterPersonAdd = 'reopen_event';
+}
+function pickColor(c, el) { selColorVal = c; document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('sel')); el.classList.add('sel'); }
+function hexToRgb(hex) {
+  if (!hex || !hex.startsWith('#')) return hex;
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return 'rgb(' + r + ', ' + g + ', ' + b + ')';
+}
+function pickRepeat(k, el) { selRepeatVal = k; document.querySelectorAll('.repeat-btn').forEach(b => b.classList.remove('active')); el.classList.add('active'); }
+
+async function saveEvent() {
+  const title = document.getElementById('ef-title').value.trim(), date = document.getElementById('ef-date').value;
+  if (!title || !date) return;
+  const endDateEl = document.getElementById('ef-enddate');
+  const endDate = endDateEl && endDateEl.value && endDateEl.value >= date ? endDateEl.value : date;
+  const time = document.getElementById('ef-time').value.trim() || 'allday';
+  const selDot = document.querySelector('#ef-color-row .color-dot.sel');
+  const colorErr = document.getElementById('ef-color-err');
+  // 編集時は既存の色をフォールバックとして使う
+  const existingColor = editId ? (events.find(e => e.id === editId)?.color || '') : '';
+  if (!selColorVal && !selDot && !existingColor) { if (colorErr) colorErr.style.display = 'block'; return; }
+  if (colorErr) colorErr.style.display = 'none';
+  const color = selColorVal || (selDot ? selDot.style.backgroundColor : existingColor) || COLORS[0];
+  const rKey = selRepeatVal || document.querySelector('.repeat-btn.active')?.dataset?.key || 'none';
+  const memo = document.getElementById('ef-memo').value;
+  const selPs = Array.from(document.querySelectorAll('#ef-people .ps-chip.sel')).map(el => { const p = people.find(x => el.textContent.trim() === x.name); return p ? p.id : null; }).filter(Boolean);
+  setSyncing(true);
+  if (editId) {
+    const ev = events.find(e => e.id === editId);
+    if (ev) {
+      Object.assign(ev, { title, date, endDate, time, color, repeat: rKey, memo, people: selPs.length ? selPs : ev.people });
+      await db.from('events').update({ title, date, end_date: endDate, time, color, people: ev.people, repeat: rKey, memo }).eq('id', editId);
+    }
+  } else {
+    const payload = { title, date, end_date: endDate, time, color, people: selPs, repeat: rKey, memo };
+    const { data } = await db.from('events').insert(payload).select().single();
+    if (data) events.push(fromDBEvent(data));
+  }
+  setSyncing(false);
+  closeModal(); renderCal(); if (selEventId) renderEvDetail();
+}
+
+async function saveLog() {
+  const cat = document.getElementById('lf-cat').value, title = document.getElementById('lf-title').value.trim(); if (!title) return;
+  const personIdRaw = document.getElementById('lf-person').value;
+  const personId = personIdRaw === '0' ? null : parseInt(personIdRaw);
+  const date = document.getElementById('lf-date').value;
+  const amtEl = document.getElementById('lf-amount'), amount = amtEl && amtEl.value ? parseInt(amtEl.value) : null;
+  const memoEl = document.getElementById('lf-memo'), memo = memoEl ? memoEl.value.trim() : '';
+  const dispNameEl = document.getElementById('lf-dispname'), displayName = dispNameEl ? dispNameEl.value.trim() : '';
+  const replyTo = selReplyId === 0 ? null : (selReplyId || null);
+  // おくりものはデフォルトで完了
+  const defaultDone = cat === 'okuri' ? true : false;
+  // 紐付けありの場合は自動完了
+  const done = replyTo ? true : defaultDone;
+  setSyncing(true);
+  if (editId) {
+    const log = logs.find(l => l.id === editId);
+    if (log) {
+      const newDone = replyTo ? true : log.done;
+      Object.assign(log, { cat, title, personId, date, amount, replyTo, memo, displayName, done: newDone });
+      await db.from('logs').update({ cat, title, person_id: personId, date, amount, reply_to: replyTo, memo, display_name: displayName, done: newDone }).eq('id', editId);
+      // 紐付き元のログも完了にする
+      if (replyTo) {
+        const linked = logs.find(l => l.id === replyTo);
+        if (linked && !linked.done) { linked.done = true; await db.from('logs').update({ done: true }).eq('id', replyTo); }
+      }
+    }
+  } else {
+    const payload = { cat, title, person_id: personId, date, done, amount, reply_to: replyTo, memo, display_name: displayName };
+    const { data } = await db.from('logs').insert(payload).select().single();
+    if (data) {
+      logs.push(fromDBLog(data));
+      // 紐付き元のログも完了にする
+      if (replyTo) {
+        const linked = logs.find(l => l.id === replyTo);
+        if (linked && !linked.done) { linked.done = true; await db.from('logs').update({ done: true }).eq('id', replyTo); }
+      }
+    }
+  }
+  setSyncing(false);
+  closeModal();
+  if (mainScreen === 'hancho') renderHancho();
+  if (mainScreen === 'calendar') renderCal();
+  if (selEventId) renderEvDetail();
+  if (selLogId) renderLogDetail();
+  if (selPersonId) renderPersonDetail();
+}
+
+async function saveLink(lid) {
+  const log = logs.find(l => l.id === lid); if (!log) return;
+  const replyTo = selReplyId === 0 ? null : (selReplyId || null);
+  log.replyTo = replyTo;
+  const newDone = replyTo ? true : log.done;
+  log.done = newDone;
+  setSyncing(true);
+  await db.from('logs').update({ reply_to: replyTo, done: newDone }).eq('id', lid);
+  // 紐付き元のログも完了にする
+  if (replyTo) {
+    const linked = logs.find(l => l.id === replyTo);
+    if (linked && !linked.done) { linked.done = true; await db.from('logs').update({ done: true }).eq('id', replyTo); }
+  }
+  setSyncing(false);
+  closeModal(); renderLogDetail();
+}
+
+async function savePerson() {
+  const name = document.getElementById('pf-name').value.trim(); if (!name) return;
+  const rel = document.getElementById('pf-rel').value.trim() || 'その他';
+  const color = selColorVal || document.querySelector('.color-dot.sel')?.style.background || COLORS[0];
+  setSyncing(true);
+  if (editId) {
+    const p = people.find(x => x.id === editId);
+    if (p) {
+      Object.assign(p, { name, initial: name.charAt(0), rel, color });
+      await db.from('people').update({ name, initial: name.charAt(0), rel, color }).eq('id', editId);
+    }
+  } else {
+    const payload = { name, initial: name.charAt(0), color, rel };
+    const { data } = await db.from('people').insert(payload).select().single();
+    if (data) people.push(fromDBPerson(data));
+  }
+  setSyncing(false);
+  closeModal();
+  if (_afterPersonAdd === 'reopen_event') {
+    _afterPersonAdd = null;
+    setTimeout(() => {
+      openModal('event', editId);
+      // フォーム内容を復元
+      setTimeout(() => {
+        if (!_savedEventForm) return;
+        const f = _savedEventForm;
+        if (document.getElementById('ef-title')) document.getElementById('ef-title').value = f.title;
+        if (document.getElementById('ef-date')) document.getElementById('ef-date').value = f.date;
+        if (document.getElementById('ef-enddate')) document.getElementById('ef-enddate').value = f.enddate;
+        if (document.getElementById('ef-time')) document.getElementById('ef-time').value = f.time;
+        if (document.getElementById('ef-memo')) document.getElementById('ef-memo').value = f.memo;
+        // 色を復元
+        if (f.color) {
+          selColorVal = f.color;
+          document.querySelectorAll('#ef-color-row .color-dot').forEach(d => {
+            const dc = d.style.backgroundColor || d.style.background || '';
+            // hex と rgb両方対応
+            if (dc === f.color || hexToRgb(f.color) === dc) {
+              d.classList.add('sel');
+            }
+          });
+        }
+        // 繰り返しを復元
+        if (f.repeat) {
+          selRepeatVal = f.repeat;
+          document.querySelectorAll('.repeat-btn').forEach(b => b.classList.toggle('active', b.dataset.key === f.repeat));
+        }
+        // 人を復元
+        document.querySelectorAll('#ef-people .ps-chip').forEach(chip => {
+          if (f.people.includes(chip.textContent.trim())) chip.classList.add('sel');
+        });
+        _savedEventForm = null;
+      }, 80);
+    }, 100);
+  }
+  else { renderPeople(); if (selPersonId) renderPersonDetail(); }
+}
+
+async function deletePerson(id) {
+  setSyncing(true);
+  await db.from('logs').delete().eq('person_id', id);
+  await db.from('people').delete().eq('id', id);
+  logs = logs.filter(l => l.personId !== id);
+  people = people.filter(p => p.id !== id);
+  hPersonFilter.delete(id);
+  setSyncing(false);
+  closeModal(); selPersonId = null; goBack();
+}
+
+// ── EDGE SWIPE ──
+(function () {
+  let ex0 = 0, ey0 = 0, edging = false;
+  const phone = document.querySelector('.phone');
+  phone.addEventListener('touchstart', e => { const t = e.touches[0]; ex0 = t.clientX; ey0 = t.clientY; edging = t.clientX < 28; }, { passive: true });
+  phone.addEventListener('touchend', e => { if (!edging) return; const dx = e.changedTouches[0].clientX - ex0, dy = Math.abs(e.changedTouches[0].clientY - ey0); if (dx > 60 && dy < 80 && screenStack.length > 0) goBack(); edging = false; }, { passive: true });
+})();
+
+setInterval(() => { const d = new Date(); document.getElementById('sb-time').textContent = d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0'); }, 15000);
+
+// ── INIT ──
+checkSession();
+</script>
+</body>
+</html>
