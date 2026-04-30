@@ -382,70 +382,37 @@ body{
 </div>
 
 <script>
-// ══════════════════════════════════════════
-// SUPABASE 設定
-// ここを自分の値に書き換えてください
-// ══════════════════════════════════════════
 const SUPABASE_URL = 'https://ohqgpmtkhhixvnkrjbvb.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ocWdwbXRraGhpeHZua3JqYnZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzMDE4MjEsImV4cCI6MjA5MTg3NzgyMX0.tkm8eT9FCWGmKXPPVeDV6L6STEQ_jVnrNkcGDbRtSCg';
 
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false
-  }
+  auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: false }
 });
 
-// ── ログイン ──
 async function doLogin() {
   const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
   const errEl = document.getElementById('login-err');
   errEl.textContent = '';
   if (!email || !password) { errEl.textContent = 'メールとパスワードを入力してください'; return; }
-  
   try {
     const { data, error } = await db.auth.signInWithPassword({ email, password });
-    if (error) {
-      console.error('Login error:', error);
-      errEl.textContent = 'エラー: ' + error.message;
-      return;
-    }
-    if (data && data.session) {
-      document.getElementById('login-screen').classList.add('hidden');
-      await loadAllData();
-    }
-  } catch(e) {
-    console.error('Login exception:', e);
-    errEl.textContent = '接続エラー: ' + e.message;
-  }
+    if (error) { errEl.textContent = 'エラー: ' + error.message; return; }
+    if (data && data.session) { document.getElementById('login-screen').classList.add('hidden'); await loadAllData(); }
+  } catch(e) { errEl.textContent = '接続エラー: ' + e.message; }
 }
 
-// セッション確認（リロード時に自動ログイン）
 async function checkSession() {
   try {
     const { data: { session } } = await db.auth.getSession();
-    if (session) {
-      document.getElementById('login-screen').classList.add('hidden');
-      await loadAllData();
-    } else {
-      document.getElementById('loading-overlay').classList.add('hidden');
-    }
-  } catch(e) {
-    console.error('Session check error:', e);
-    document.getElementById('loading-overlay').classList.add('hidden');
-  }
+    if (session) { document.getElementById('login-screen').classList.add('hidden'); await loadAllData(); }
+    else { document.getElementById('loading-overlay').classList.add('hidden'); }
+  } catch(e) { document.getElementById('loading-overlay').classList.add('hidden'); }
 }
 
-// ── DATA ──
-let people = [];
-let events = [];
-let logs = [];
+let people = [], events = [], logs = [];
 
-function setSyncing(v) {
-  document.getElementById('sync-dot').classList.toggle('syncing', v);
-}
+function setSyncing(v) { document.getElementById('sync-dot').classList.toggle('syncing', v); }
 
 async function loadAllData() {
   setSyncing(true);
@@ -464,12 +431,10 @@ async function loadAllData() {
   setupRealtime();
 }
 
-// DB ↔ JS 変換
 function fromDBPerson(r) { return { id: r.id, name: r.name, initial: r.initial || r.name.charAt(0), color: r.color, rel: r.rel, sortOrder: r.sort_order || 0 }; }
 function fromDBEvent(r) { return { id: r.id, title: r.title, date: r.date, endDate: r.end_date || r.date, time: r.time || 'allday', color: r.color, people: r.people || [], repeat: r.repeat || 'none', memo: r.memo || '' }; }
 function fromDBLog(r) { return { id: r.id, personId: r.person_id, cat: r.cat, title: r.title, date: r.date, done: r.done, replyTo: r.reply_to, amount: r.amount, memo: r.memo || '', displayName: r.display_name || '' }; }
 
-// ── REALTIME ──
 function setupRealtime() {
   db.channel('db-changes')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'people' }, handleRealtimePeople)
@@ -491,17 +456,13 @@ function handleRealtimeEvents({ eventType, new: n, old: o }) {
   renderCal();
 }
 function handleRealtimeLogs({ eventType, new: n, old: o }) {
-  if (eventType === 'INSERT') {
-    // 自分のsaveLogで既に追加済みの場合はスキップ
-    if (!logs.find(x => x.id === n.id)) logs.push(fromDBLog(n));
-  }
+  if (eventType === 'INSERT') { if (!logs.find(x => x.id === n.id)) logs.push(fromDBLog(n)); }
   else if (eventType === 'UPDATE') { const i = logs.findIndex(x => x.id === n.id); if (i >= 0) logs[i] = fromDBLog(n); }
   else if (eventType === 'DELETE') logs = logs.filter(x => x.id !== o.id);
   if (mainScreen === 'hancho') renderHancho();
   if (mainScreen === 'people') renderPeople();
 }
 
-// ── CONSTANTS ──
 const IC = '#6d6865';
 const ICONS = {
   okuri: '<svg viewBox="0 0 24 24" fill="none" stroke="' + IC + '" stroke-width="1.8"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>',
@@ -526,15 +487,12 @@ const FLAG_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" st
 
 setInterval(() => { const d = new Date(); document.getElementById('sb-time').textContent = d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0'); }, 15000);
 
-// ── NAVIGATION ──
 let mainScreen = 'calendar';
 let screenStack = [];
 const MAIN = { calendar: 'scr-calendar', hancho: 'scr-hancho', people: 'scr-people', notif: 'scr-notif' };
 const BNAV = { calendar: 'bnav-cal', hancho: 'bnav-han', people: 'bnav-ppl', notif: 'bnav-notif' };
 
-function setActive(id) {
-  document.querySelectorAll('.screen').forEach(s => { s.classList.toggle('active', s.id === id); });
-}
+function setActive(id) { document.querySelectorAll('.screen').forEach(s => { s.classList.toggle('active', s.id === id); }); }
 function showMain(name) {
   mainScreen = name; screenStack = []; setActive(MAIN[name]);
   Object.keys(BNAV).forEach(k => { document.getElementById(BNAV[k]).classList.toggle('active', k === name); });
@@ -559,7 +517,6 @@ function goBack() {
   }
 }
 
-// ── CALENDAR ──
 const _now = new Date();
 let cur = { y: _now.getFullYear(), m: _now.getMonth() + 1 };
 let selDate = todayStr();
@@ -627,6 +584,7 @@ function evEffectiveDates(ev, y, m) {
   }
   return { start, end };
 }
+
 function eventsInMonth(y, m) {
   const monthStart = ds(y, m, 1), monthEnd = ds(y, m, new Date(y, m, 0).getDate()), result = [];
   events.forEach(ev => {
@@ -634,10 +592,10 @@ function eventsInMonth(y, m) {
     const { start, end } = eff;
     if (start <= monthEnd && end >= monthStart) result.push({ ...ev, effStart: start, effEnd: end });
   });
-  // 祝日・記念日を追加
   getHolidaysInMonth(y, m).forEach(h => result.push(h));
   return result;
 }
+
 // グリッド全体（前後月含む）の予定を返す
 function eventsInGrid(y, m) {
   const first = new Date(y, m - 1, 1).getDay();
@@ -668,6 +626,7 @@ function eventsInGrid(y, m) {
   });
   return result;
 }
+
 function eventsOnDate(ds_) {
   const y = parseInt(ds_.slice(0, 4)), m = parseInt(ds_.slice(5, 7));
   return eventsInMonth(y, m).filter(ev => ev.effStart <= ds_ && ev.effEnd >= ds_);
@@ -676,7 +635,6 @@ function eventsOnDate(ds_) {
 // ── 祝日・記念日 ──
 const HOLIDAY_COLOR = '#B0AAA4';
 
-// nWeekday: 第n月曜など (n=1始まり, dow=0:日..6:土)
 function nthWeekday(y, m, n, dow) {
   let count = 0;
   for (let d = 1; d <= 31; d++) {
@@ -686,59 +644,28 @@ function nthWeekday(y, m, n, dow) {
   }
   return null;
 }
-
-// 春分・秋分（簡易計算）
-function shunbun(y) {
-  const d = Math.floor(20.8431 + 0.242194 * (y - 1980) - Math.floor((y - 1980) / 4));
-  return ds(y, 3, d);
-}
-function shubun(y) {
-  const d = Math.floor(23.2488 + 0.242194 * (y - 1980) - Math.floor((y - 1980) / 4));
-  return ds(y, 9, d);
-}
+function shunbun(y) { const d = Math.floor(20.8431 + 0.242194 * (y - 1980) - Math.floor((y - 1980) / 4)); return ds(y, 3, d); }
+function shubun(y) { const d = Math.floor(23.2488 + 0.242194 * (y - 1980) - Math.floor((y - 1980) / 4)); return ds(y, 9, d); }
 
 function getAnnualEvents(y) {
   const H = HOLIDAY_COLOR;
   const list = [];
   const add = (date, title) => list.push({ id: 'h-'+date, date, endDate: date, effStart: date, effEnd: date, title, time: 'allday', color: H, people: [], repeat: 'yearly', memo: '', isHoliday: true });
-
-  // 固定祝日
-  add(ds(y,1,1),  '元旦');
-  add(ds(y,2,3),  '節分');
-  add(ds(y,2,11), '建国記念の日');
-  add(ds(y,2,14), 'バレンタインデー');
-  add(ds(y,3,3),  'ひなまつり');
-  add(ds(y,3,14), 'ホワイトデー');
-  add(shunbun(y), '春分の日');
-  add(ds(y,4,29), '昭和の日');
-  add(ds(y,5,3),  '憲法記念日');
-  add(ds(y,5,4),  'みどりの日');
-  add(ds(y,5,5),  'こどもの日');
-  add(ds(y,7,7),  '七夕');
-  add(ds(y,8,11), '山の日');
-  add(ds(y,9,1),  '防災の日');
-  add(shubun(y),  '秋分の日');
-  add(ds(y,10,31),'ハロウィン');
-  add(ds(y,11,3), '文化の日');
-  add(ds(y,11,15),'七五三');
-  add(ds(y,11,23),'勤労感謝の日');
-  add(ds(y,12,24),'クリスマスイブ');
-  add(ds(y,12,25),'クリスマス');
-  add(ds(y,12,31),'大晦日');
-
-  // 計算で出る祝日・記念日
+  add(ds(y,1,1),'元旦'); add(ds(y,2,3),'節分'); add(ds(y,2,11),'建国記念の日'); add(ds(y,2,14),'バレンタインデー');
+  add(ds(y,3,3),'ひなまつり'); add(ds(y,3,14),'ホワイトデー'); add(shunbun(y),'春分の日');
+  add(ds(y,4,29),'昭和の日'); add(ds(y,5,3),'憲法記念日'); add(ds(y,5,4),'みどりの日'); add(ds(y,5,5),'こどもの日');
+  add(ds(y,7,7),'七夕'); add(ds(y,8,11),'山の日'); add(ds(y,9,1),'防災の日'); add(shubun(y),'秋分の日');
+  add(ds(y,10,31),'ハロウィン'); add(ds(y,11,3),'文化の日'); add(ds(y,11,15),'七五三'); add(ds(y,11,23),'勤労感謝の日');
+  add(ds(y,12,24),'クリスマスイブ'); add(ds(y,12,25),'クリスマス'); add(ds(y,12,31),'大晦日');
   const seijin = nthWeekday(y,1,2,1); if(seijin) add(seijin,'成人の日');
-  const kenpo = nthWeekday(y,2,2,1); if(kenpo) add(kenpo,'建国記念日前後（振替）');
   const umi = nthWeekday(y,7,3,1); if(umi) add(umi,'海の日');
   const keiro = nthWeekday(y,9,3,1); if(keiro) add(keiro,'敬老の日');
   const taiiku = nthWeekday(y,10,2,1); if(taiiku) add(taiiku,'スポーツの日');
   const haha = nthWeekday(y,5,2,0); if(haha) add(haha,'母の日');
   const chichi = nthWeekday(y,6,3,0); if(chichi) add(chichi,'父の日');
-
   return list;
 }
 
-// キャッシュ
 const _holidayCache = {};
 function getHolidaysInMonth(y, m) {
   const key = y+'-'+m;
@@ -793,6 +720,7 @@ function buildMonthHTML(y, m) {
   return h;
 }
 
+// ── placeEvBars: グリッド全体座標ベースで描画 ──
 function placeEvBars(pid) {
   const goEl = document.getElementById('go-' + pid), layerEl = document.getElementById('el-' + pid), dataEl = document.getElementById('evdata-' + pid);
   if (!goEl || !layerEl || !dataEl) return;
@@ -804,58 +732,68 @@ function placeEvBars(pid) {
   const EV_H = 13, EV_GAP = 2, NUM_H = 30;
   const MAX_SLOTS = Math.max(1, Math.floor((cellH - NUM_H) / (EV_H + EV_GAP)));
   const monthStart = ym + '-01', monthEnd = ym + '-' + String(days).padStart(2, '0');
+  // グリッド開始日（前月セルの最初の日）
+  const gridStart = addDays(monthStart, -first);
+  const totalCells = rows * 7;
+  const gridEnd = addDays(monthStart, totalCells - first - 1);
+
   const slotMap = {};
   const getSlot = (r, c) => slotMap[r + '*' + c] || 0;
   const getSegSlot = (r, c, len) => { let mx = 0; for (let k = 0; k < len; k++) mx = Math.max(mx, getSlot(r, c + k)); return mx; };
   const reserveSegSlot = (r, c, len, slot) => { for (let k = 0; k < len; k++) slotMap[r + '*' + (c + k)] = Math.max(getSlot(r, c + k), slot + 1); };
+
+  // +N バッジ用カウント（当月セルのみ）
+  const overflowCells = {};
   let bars = '';
+
   monthEvs.forEach(ev => {
-    const effS = ev.effStart < monthStart ? monthStart : ev.effStart, effE = ev.effEnd > monthEnd ? monthEnd : ev.effEnd;
-    const isMulti = diffDays(ev.effStart, ev.effEnd) > 0;
+    // グリッド範囲でクリップ
+    const effS = ev.effStart < gridStart ? gridStart : ev.effStart;
+    const effE = ev.effEnd > gridEnd ? gridEnd : ev.effEnd;
     let seg = effS;
     while (seg <= effE) {
-      const ci = diffDays(monthStart, seg) + first, sRow = Math.floor(ci / 7), sCol = ci % 7;
-      const toSat = 6 - sCol, toEnd = diffDays(seg, effE), sLen = Math.min(toSat, toEnd) + 1;
-      const slot = getSegSlot(sRow, sCol, sLen);
-      if (slot < MAX_SLOTS) {
-        reserveSegSlot(sRow, sCol, sLen, slot);
-        const lx = sCol * cellW + 1, ty = sRow * cellH + NUM_H + slot * (EV_H + EV_GAP), w = Math.min(sLen * cellW - 2, rect.width - lx - 1);
-        const isS = seg === effS || seg === monthStart, isE = addDays(seg, sLen - 1) === effE || addDays(seg, sLen - 1) === monthEnd;
-        const cls = isS && isE ? 'single' : isS ? 'start' : isE ? 'end' : 'mid';
-        bars += '<div class="cal-ev-bar ' + cls + '" onclick="openEvDetail(' + ev.id + ')" style="left:' + lx.toFixed(1) + 'px;top:' + ty.toFixed(1) + 'px;width:' + w.toFixed(1) + 'px;background:' + ev.color + 'ee;color:#fff;">' + (isS ? esc(ev.title) : '') + '</div>';
-      }
-      seg = addDays(seg, sLen);
-    }
-  });
-  // +N バッジ: 溢れたイベント件数をセルごとに表示
-  const overflowCount = {};
-  monthEvs.forEach(ev => {
-    const effS = ev.effStart < monthStart ? monthStart : ev.effStart;
-    const effE = ev.effEnd > monthEnd ? monthEnd : ev.effEnd;
-    let seg = effS;
-    while (seg <= effE) {
-      const ci = diffDays(monthStart, seg) + first;
+      // グリッド先頭からのセルインデックスで行・列を計算
+      const ci = diffDays(gridStart, seg);
       const sRow = Math.floor(ci / 7), sCol = ci % 7;
       const toSat = 6 - sCol, toEnd = diffDays(seg, effE);
       const sLen = Math.min(toSat, toEnd) + 1;
       const slot = getSegSlot(sRow, sCol, sLen);
-      if (slot >= MAX_SLOTS) {
+      if (slot < MAX_SLOTS) {
+        reserveSegSlot(sRow, sCol, sLen, slot);
+        const lx = sCol * cellW + 1;
+        const ty = sRow * cellH + NUM_H + slot * (EV_H + EV_GAP);
+        const w = Math.min(sLen * cellW - 2, rect.width - lx - 1);
+        const isS = seg === effS;
+        const isE = addDays(seg, sLen - 1) === effE;
+        const cls = isS && isE ? 'single' : isS ? 'start' : isE ? 'end' : 'mid';
+        const clickAttr = ev.isHoliday ? '' : 'onclick="openEvDetail(' + ev.id + ')" ';
+        bars += '<div class="cal-ev-bar ' + cls + '" ' + clickAttr + 'style="left:' + lx.toFixed(1) + 'px;top:' + ty.toFixed(1) + 'px;width:' + w.toFixed(1) + 'px;background:' + ev.color + 'ee;color:#fff;">' + (isS ? esc(ev.title) : '') + '</div>';
+      } else {
+        // 溢れた予定：当月セルのみ +N カウント
         for (let k = 0; k < sLen; k++) {
-          const key = sRow + '*' + (sCol + k);
-          overflowCount[key] = (overflowCount[key] || 0) + 1;
+          const cellDate = addDays(seg, k);
+          if (cellDate >= monthStart && cellDate <= monthEnd) {
+            const key = sRow + '*' + (sCol + k);
+            overflowCells[key] = (overflowCells[key] || 0) + 1;
+          }
         }
       }
       seg = addDays(seg, sLen);
     }
   });
-  Object.entries(overflowCount).forEach(([key, cnt]) => {
+
+  // +N バッジ：日付数字の右横（NUM_H内）に描画
+  Object.entries(overflowCells).forEach(([key, cnt]) => {
     const [r, c] = key.split('*').map(Number);
-    const lx = c * cellW + 1;
-    const ty2 = (r + 1) * cellH - 13;
-    bars += '<div style="position:absolute;left:' + (lx + cellW - 18).toFixed(1) + 'px;top:' + ty2.toFixed(1) + 'px;font-size:9px;font-weight:600;color:var(--ink2);line-height:13px;pointer-events:none;">+' + cnt + '</div>';
+    // 日付円の右端あたりの位置（セル左端 + cellW/2 + 13px）
+    const bx = c * cellW + cellW / 2 + 13;
+    const by = r * cellH + 6;
+    bars += '<div style="position:absolute;left:' + bx.toFixed(1) + 'px;top:' + by.toFixed(1) + 'px;font-size:8px;font-weight:600;color:var(--ink2);line-height:14px;pointer-events:none;">+' + cnt + '</div>';
   });
+
   layerEl.innerHTML = bars;
 }
+
 function placeAllEvBars() { document.querySelectorAll('[id^="evdata-"]').forEach(el => { placeEvBars(el.id.replace('evdata-', '')); }); }
 
 function attachSwipe() {
@@ -888,7 +826,6 @@ function renderEvCard(ev) {
   return '<div class="ev-card" onclick="openEvDetail(' + ev.id + ')"><div class="ev-card-inner"><div class="ev-color-bar" style="background:' + ev.color + ';"></div><div class="ev-card-body"><div class="ev-card-title">' + esc(ev.title) + '</div><div class="ev-card-time">' + (ev.time === 'allday' ? '終日' : ev.time) + (ev.repeat !== 'none' ? ' · ' + REPEAT[ev.repeat] : '') + '</div><div class="ev-people">' + chips + '</div></div></div></div>';
 }
 
-// ── EVENT DETAIL ──
 let selEventId = null;
 function openEvDetail(id) { selEventId = id; renderEvDetail(); push('scr-evdetail'); }
 function renderEvDetail() {
@@ -916,7 +853,6 @@ async function deleteEvent(id) {
   goBack();
 }
 
-// ── HANCHO ──
 let hFilter = 'all', hPersonFilter = new Set();
 function setHF(f, el) { hFilter = f; document.querySelectorAll('#hancho-cat-filter .hf-btn').forEach(b => b.classList.remove('active')); el.classList.add('active'); renderHancho(); }
 function buildPersonFilterChips() {
@@ -948,7 +884,6 @@ async function quickDone(id) {
   renderHancho();
 }
 
-// ── LOG DETAIL ──
 let selLogId = null;
 function openLogDetail(id) { selLogId = id; renderLogDetail(); push('scr-logdetail'); }
 function renderLogDetail() {
@@ -978,7 +913,6 @@ async function deleteLog(id) {
   goBack();
 }
 
-// ── PEOPLE ──
 function renderPeople() {
   const sorted = [...people].sort((a,b) => (a.sortOrder||0) - (b.sortOrder||0));
   let h = '';
@@ -1023,7 +957,6 @@ function renderPersonDetail() {
   document.getElementById('persondetail-body').innerHTML = h;
 }
 
-// ── REMIND ──
 const REMIND_DAYS = { kari: 30, kashi: 60, itadaki: 14, arigato: 21 };
 const REMIND_MSGS = { kari: n => '「' + n + '」を借りたまま' + REMIND_DAYS.kari + '日以上経過しています', kashi: n => '「' + n + '」を貸したまま' + REMIND_DAYS.kashi + '日以上経過しています', itadaki: n => '「' + n + '」のお返しがまだです（' + REMIND_DAYS.itadaki + '日以上）', arigato: n => '「' + n + '」のお礼がまだ伝えられていません（' + REMIND_DAYS.arigato + '日以上）' };
 function buildRemindItems() {
@@ -1062,11 +995,9 @@ async function completeRemind(idx) {
   renderNotif();
 }
 
-// ── MODAL ──
 let modalType = '', editId = null, selColorVal = '', selRepeatVal = 'none', selReplyId = null;
 function openModal(type, id) {
   modalType = type; editId = id; selColorVal = ''; selRepeatVal = 'none'; selReplyId = null;
-  // 編集時は既存の値をセット
   if (type === 'event' && id) {
     const ev = events.find(e => e.id === id);
     if (ev) { selColorVal = ev.color || ''; selRepeatVal = ev.repeat || 'none'; }
@@ -1127,7 +1058,6 @@ function onPersonChange() {
   updateRC(null);
 }
 function initPersonField() {
-  // 初期表示時にその他が選ばれていたら表示名欄を出す
   setTimeout(() => {
     const sel = document.getElementById('lf-person');
     if (!sel) return;
@@ -1158,7 +1088,6 @@ function buildPersonForm(id) {
 let _afterPersonAdd = null;
 let _savedEventForm = null;
 function quickAddP(el) {
-  // 入力内容を保存
   _savedEventForm = {
     title: document.getElementById('ef-title')?.value || '',
     date: document.getElementById('ef-date')?.value || '',
@@ -1189,7 +1118,6 @@ async function saveEvent() {
   const time = document.getElementById('ef-time').value.trim() || 'allday';
   const selDot = document.querySelector('#ef-color-row .color-dot.sel');
   const colorErr = document.getElementById('ef-color-err');
-  // 編集時は既存の色をフォールバックとして使う
   const existingColor = editId ? (events.find(e => e.id === editId)?.color || '') : '';
   if (!selColorVal && !selDot && !existingColor) { if (colorErr) colorErr.style.display = 'block'; return; }
   if (colorErr) colorErr.style.display = 'none';
@@ -1222,9 +1150,7 @@ async function saveLog() {
   const memoEl = document.getElementById('lf-memo'), memo = memoEl ? memoEl.value.trim() : '';
   const dispNameEl = document.getElementById('lf-dispname'), displayName = dispNameEl ? dispNameEl.value.trim() : '';
   const replyTo = selReplyId === 0 ? null : (selReplyId || null);
-  // おくりものはデフォルトで完了
   const defaultDone = cat === 'okuri' ? true : false;
-  // 紐付けありの場合は自動完了
   const done = replyTo ? true : defaultDone;
   setSyncing(true);
   if (editId) {
@@ -1233,22 +1159,14 @@ async function saveLog() {
       const newDone = replyTo ? true : log.done;
       Object.assign(log, { cat, title, personId, date, amount, replyTo, memo, displayName, done: newDone });
       await db.from('logs').update({ cat, title, person_id: personId, date, amount, reply_to: replyTo, memo, display_name: displayName, done: newDone }).eq('id', editId);
-      // 紐付き元のログも完了にする
-      if (replyTo) {
-        const linked = logs.find(l => l.id === replyTo);
-        if (linked && !linked.done) { linked.done = true; await db.from('logs').update({ done: true }).eq('id', replyTo); }
-      }
+      if (replyTo) { const linked = logs.find(l => l.id === replyTo); if (linked && !linked.done) { linked.done = true; await db.from('logs').update({ done: true }).eq('id', replyTo); } }
     }
   } else {
     const payload = { cat, title, person_id: personId, date, done, amount, reply_to: replyTo, memo, display_name: displayName };
     const { data } = await db.from('logs').insert(payload).select().single();
     if (data) {
       logs.push(fromDBLog(data));
-      // 紐付き元のログも完了にする
-      if (replyTo) {
-        const linked = logs.find(l => l.id === replyTo);
-        if (linked && !linked.done) { linked.done = true; await db.from('logs').update({ done: true }).eq('id', replyTo); }
-      }
+      if (replyTo) { const linked = logs.find(l => l.id === replyTo); if (linked && !linked.done) { linked.done = true; await db.from('logs').update({ done: true }).eq('id', replyTo); } }
     }
   }
   setSyncing(false);
@@ -1268,11 +1186,7 @@ async function saveLink(lid) {
   log.done = newDone;
   setSyncing(true);
   await db.from('logs').update({ reply_to: replyTo, done: newDone }).eq('id', lid);
-  // 紐付き元のログも完了にする
-  if (replyTo) {
-    const linked = logs.find(l => l.id === replyTo);
-    if (linked && !linked.done) { linked.done = true; await db.from('logs').update({ done: true }).eq('id', replyTo); }
-  }
+  if (replyTo) { const linked = logs.find(l => l.id === replyTo); if (linked && !linked.done) { linked.done = true; await db.from('logs').update({ done: true }).eq('id', replyTo); } }
   setSyncing(false);
   closeModal(); renderLogDetail();
 }
@@ -1284,10 +1198,7 @@ async function savePerson() {
   setSyncing(true);
   if (editId) {
     const p = people.find(x => x.id === editId);
-    if (p) {
-      Object.assign(p, { name, initial: name.charAt(0), rel, color });
-      await db.from('people').update({ name, initial: name.charAt(0), rel, color }).eq('id', editId);
-    }
+    if (p) { Object.assign(p, { name, initial: name.charAt(0), rel, color }); await db.from('people').update({ name, initial: name.charAt(0), rel, color }).eq('id', editId); }
   } else {
     const payload = { name, initial: name.charAt(0), color, rel };
     const { data } = await db.from('people').insert(payload).select().single();
@@ -1299,7 +1210,6 @@ async function savePerson() {
     _afterPersonAdd = null;
     setTimeout(() => {
       openModal('event', editId);
-      // フォーム内容を復元
       setTimeout(() => {
         if (!_savedEventForm) return;
         const f = _savedEventForm;
@@ -1308,26 +1218,18 @@ async function savePerson() {
         if (document.getElementById('ef-enddate')) document.getElementById('ef-enddate').value = f.enddate;
         if (document.getElementById('ef-time')) document.getElementById('ef-time').value = f.time;
         if (document.getElementById('ef-memo')) document.getElementById('ef-memo').value = f.memo;
-        // 色を復元
         if (f.color) {
           selColorVal = f.color;
           document.querySelectorAll('#ef-color-row .color-dot').forEach(d => {
             const dc = d.style.backgroundColor || d.style.background || '';
-            // hex と rgb両方対応
-            if (dc === f.color || hexToRgb(f.color) === dc) {
-              d.classList.add('sel');
-            }
+            if (dc === f.color || hexToRgb(f.color) === dc) d.classList.add('sel');
           });
         }
-        // 繰り返しを復元
         if (f.repeat) {
           selRepeatVal = f.repeat;
           document.querySelectorAll('.repeat-btn').forEach(b => b.classList.toggle('active', b.dataset.key === f.repeat));
         }
-        // 人を復元
-        document.querySelectorAll('#ef-people .ps-chip').forEach(chip => {
-          if (f.people.includes(chip.textContent.trim())) chip.classList.add('sel');
-        });
+        document.querySelectorAll('#ef-people .ps-chip').forEach(chip => { if (f.people.includes(chip.textContent.trim())) chip.classList.add('sel'); });
         _savedEventForm = null;
       }, 80);
     }, 100);
@@ -1346,7 +1248,6 @@ async function deletePerson(id) {
   closeModal(); selPersonId = null; goBack();
 }
 
-// ── EDGE SWIPE ──
 (function () {
   let ex0 = 0, ey0 = 0, edging = false;
   const phone = document.querySelector('.phone');
@@ -1356,7 +1257,6 @@ async function deletePerson(id) {
 
 setInterval(() => { const d = new Date(); document.getElementById('sb-time').textContent = d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0'); }, 15000);
 
-// ── INIT ──
 checkSession();
 </script>
 </body>
