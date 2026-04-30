@@ -638,6 +638,36 @@ function eventsInMonth(y, m) {
   getHolidaysInMonth(y, m).forEach(h => result.push(h));
   return result;
 }
+// グリッド全体（前後月含む）の予定を返す
+function eventsInGrid(y, m) {
+  const first = new Date(y, m - 1, 1).getDay();
+  const days = new Date(y, m, 0).getDate();
+  const rows = Math.ceil((first + days) / 7);
+  const totalCells = rows * 7;
+  const gridStart = addDays(ds(y, m, 1), -first);
+  const gridEnd = addDays(ds(y, m, 1), totalCells - first - 1);
+  const result = [], seen = new Set();
+  const months = [];
+  let ty = y, tm = m - 1; if (tm < 1) { tm = 12; ty--; } months.push({y:ty,m:tm});
+  months.push({y,m});
+  let ny = y, nm = m + 1; if (nm > 12) { nm = 1; ny++; } months.push({y:ny,m:nm});
+  months.forEach(({y:ey, m:em}) => {
+    events.forEach(ev => {
+      const eff = evEffectiveDates(ev, ey, em); if (!eff) return;
+      const { start, end } = eff;
+      if (start > gridEnd || end < gridStart) return;
+      const key = ev.id + '|' + start;
+      if (seen.has(key)) return; seen.add(key);
+      result.push({ ...ev, effStart: start, effEnd: end });
+    });
+    getHolidaysInMonth(ey, em).forEach(h => {
+      if (h.date < gridStart || h.date > gridEnd) return;
+      if (seen.has(h.id)) return; seen.add(h.id);
+      result.push(h);
+    });
+  });
+  return result;
+}
 function eventsOnDate(ds_) {
   const y = parseInt(ds_.slice(0, 4)), m = parseInt(ds_.slice(5, 7));
   return eventsInMonth(y, m).filter(ev => ev.effStart <= ds_ && ev.effEnd >= ds_);
@@ -757,7 +787,7 @@ function buildMonthHTML(y, m) {
   if (!selEvs.length) h += '<div style="font-size:12px;color:var(--ink3);padding:2px 0;">予定はありません</div>';
   else selEvs.forEach(ev => h += renderEvCard(ev));
   h += '</div>';
-  const monthEvs = eventsInMonth(y, m);
+  const monthEvs = eventsInGrid(y, m);
   monthEvs.sort((a, b) => diffDays(b.effStart, b.effEnd) - diffDays(a.effStart, a.effEnd));
   h += '<script data-pid="' + pid + '" data-rows="' + rows + '" data-first="' + first + '" data-days="' + days + '" data-ym="' + y + '-' + String(m).padStart(2, '0') + '" type="application/json" id="evdata-' + pid + '">' + JSON.stringify(monthEvs) + '<\/script>';
   return h;
@@ -796,6 +826,33 @@ function placeEvBars(pid) {
       }
       seg = addDays(seg, sLen);
     }
+  });
+  // +N バッジ: 溢れたイベント件数をセルごとに表示
+  const overflowCount = {};
+  monthEvs.forEach(ev => {
+    const effS = ev.effStart < monthStart ? monthStart : ev.effStart;
+    const effE = ev.effEnd > monthEnd ? monthEnd : ev.effEnd;
+    let seg = effS;
+    while (seg <= effE) {
+      const ci = diffDays(monthStart, seg) + first;
+      const sRow = Math.floor(ci / 7), sCol = ci % 7;
+      const toSat = 6 - sCol, toEnd = diffDays(seg, effE);
+      const sLen = Math.min(toSat, toEnd) + 1;
+      const slot = getSegSlot(sRow, sCol, sLen);
+      if (slot >= MAX_SLOTS) {
+        for (let k = 0; k < sLen; k++) {
+          const key = sRow + '*' + (sCol + k);
+          overflowCount[key] = (overflowCount[key] || 0) + 1;
+        }
+      }
+      seg = addDays(seg, sLen);
+    }
+  });
+  Object.entries(overflowCount).forEach(([key, cnt]) => {
+    const [r, c] = key.split('*').map(Number);
+    const lx = c * cellW + 1;
+    const ty2 = (r + 1) * cellH - 13;
+    bars += '<div style="position:absolute;left:' + (lx + cellW - 18).toFixed(1) + 'px;top:' + ty2.toFixed(1) + 'px;font-size:9px;font-weight:600;color:var(--ink2);line-height:13px;pointer-events:none;">+' + cnt + '</div>';
   });
   layerEl.innerHTML = bars;
 }
