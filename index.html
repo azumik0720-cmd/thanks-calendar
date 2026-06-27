@@ -907,7 +907,7 @@ async function deleteEvent(id) {
   if (ev) {
     let msg = '🗑 予定が削除されました\n───────────\n\n' + ev.title +
               '\n🗓 ' + fmtNotifyDate(ev.date) + ' ' + (ev.time === 'allday' ? '終日' : ev.time);
-    sendLineNotify(msg);
+    await sendLineNotify(msg);
   }
   goBack();
 }
