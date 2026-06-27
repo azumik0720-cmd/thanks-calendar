@@ -399,7 +399,7 @@ async function sendLineNotify(text) {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + SUPABASE_KEY,
       },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text: text + '\n' }),
     });
   } catch (e) {
     console.error('LINE通知の送信に失敗:', e);
@@ -905,8 +905,10 @@ async function deleteEvent(id) {
   setSyncing(false);
   // 削除通知
   if (ev) {
+    const who = (ev.people || []).map(pid => getP(pid)?.name).filter(Boolean).join('、');
     let msg = '🗑 予定が削除されました\n───────────\n\n' + ev.title +
               '\n🗓 ' + fmtNotifyDate(ev.date) + ' ' + (ev.time === 'allday' ? '終日' : ev.time);
+    if (who) msg += '\n👤 ' + who;
     await sendLineNotify(msg);
   }
   goBack();
