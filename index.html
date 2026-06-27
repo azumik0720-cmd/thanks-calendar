@@ -1180,13 +1180,35 @@ async function saveEvent() {
   if (editId) {
     const ev = events.find(e => e.id === editId);
     if (ev) {
+      // 変更前の日時を控える（日時変更の通知判定用）
+      const oldDate = ev.date, oldTime = ev.time;
       Object.assign(ev, { title, date, endDate, time, color, repeat: rKey, memo, people: selPs.length ? selPs : ev.people });
       await db.from('events').update({ title, date, end_date: endDate, time, color, people: ev.people, repeat: rKey, memo }).eq('id', editId);
+      // 日付か時刻が変わったときだけ通知
+      if (oldDate !== date || oldTime !== time) {
+        const oldStr = fmtNotifyDate(oldDate) + ' ' + (oldTime === 'allday' ? '終日' : oldTime);
+        const newStr = fmtNotifyDate(date) + ' ' + (time === 'allday' ? '終日' : time);
+        const who = ev.people.map(pid => getP(pid)?.name).filter(Boolean).join('、');
+        let msg = '✏️ 予定が変更されました\n───────────\n' + title +
+                  '\n🗓 ' + oldStr + '\n　→ ' + newStr;
+        if (who) msg += '\n👤 ' + who;
+        sendLineNotify(msg);
+      }
     }
   } else {
     const payload = { title, date, end_date: endDate, time, color, people: selPs, repeat: rKey, memo };
     const { data } = await db.from('events').insert(payload).select().single();
-    if (data) events.push(fromDBEvent(data));
+    if (data) {
+      events.push(fromDBEvent(data));
+      // 新規追加の通知
+      const ev = fromDBEvent(data);
+      const who = ev.people.map(pid => getP(pid)?.name).filter(Boolean).join('、');
+      let msg = '📅 予定が追加されました\n───────────\n' + title +
+                '\n🗓 ' + fmtNotifyDate(date) + ' ' + (time === 'allday' ? '終日' : time);
+      if (who) msg += '\n👤 ' + who;
+      msg += buildPendingText(ev.people);
+      sendLineNotify(msg);
+    }
   }
   setSyncing(false);
   closeModal(); renderCal(); if (selEventId) renderEvDetail();
