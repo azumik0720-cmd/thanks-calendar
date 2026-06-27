@@ -1203,7 +1203,7 @@ async function saveEvent() {
       // 新規追加の通知
       const ev = fromDBEvent(data);
       const who = ev.people.map(pid => getP(pid)?.name).filter(Boolean).join('、');
-      let msg = '📅 予定が追加されました\n───────────\n' + title +
+      let msg = '📅 予定が追加されました\n───────────\n\n' + title +
                 '\n🗓 ' + fmtNotifyDate(date) + ' ' + (time === 'allday' ? '終日' : time);
       if (who) msg += '\n👤 ' + who;
       msg += buildPendingText(ev.people);
