@@ -399,7 +399,7 @@ async function sendLineNotify(text) {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + SUPABASE_KEY,
       },
-      body: JSON.stringify({ text: text + '\n' }),
+      body: JSON.stringify({ text: '\n' + text + '\n' }),
     });
   } catch (e) {
     console.error('LINE通知の送信に失敗:', e);
