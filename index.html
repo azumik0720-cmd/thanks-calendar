@@ -897,10 +897,18 @@ function renderEvDetail() {
   document.getElementById('evdetail-body').innerHTML = h;
 }
 async function deleteEvent(id) {
+  // 削除前に予定情報を控える（削除後は参照できないため）
+  const ev = events.find(e => e.id === id);
   setSyncing(true);
   await db.from('events').delete().eq('id', id);
   events = events.filter(e => e.id !== id);
   setSyncing(false);
+  // 削除通知
+  if (ev) {
+    let msg = '🗑 予定が削除されました\n───────────\n\n' + ev.title +
+              '\n🗓 ' + fmtNotifyDate(ev.date) + ' ' + (ev.time === 'allday' ? '終日' : ev.time);
+    sendLineNotify(msg);
+  }
   goBack();
 }
 
@@ -1189,7 +1197,7 @@ async function saveEvent() {
         const oldStr = fmtNotifyDate(oldDate) + ' ' + (oldTime === 'allday' ? '終日' : oldTime);
         const newStr = fmtNotifyDate(date) + ' ' + (time === 'allday' ? '終日' : time);
         const who = ev.people.map(pid => getP(pid)?.name).filter(Boolean).join('、');
-        let msg = '✏️ 予定が変更されました\n───────────\n' + title +
+        let msg = '✏️ 予定が変更されました\n───────────\n\n' + title +
                   '\n🗓 ' + oldStr + '\n　→ ' + newStr;
         if (who) msg += '\n👤 ' + who;
         sendLineNotify(msg);
