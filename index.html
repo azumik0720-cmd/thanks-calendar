@@ -385,6 +385,57 @@ body{
 const SUPABASE_URL = 'https://ohqgpmtkhhixvnkrjbvb.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ocWdwbXRraGhpeHZua3JqYnZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzMDE4MjEsImV4cCI6MjA5MTg3NzgyMX0.tkm8eT9FCWGmKXPPVeDV6L6STEQ_jVnrNkcGDbRtSCg';
 
+// ───────────── LINE通知 ─────────────
+// Edge Function のURL（あなたのプロジェクト固定）
+const NOTIFY_URL = 'https://ohqgpmtkhhixvnkrjbvb.supabase.co/functions/v1/notify-line';
+
+// LINEへ通知を送る土台。textを渡すとブロードキャストされる。
+// 通知失敗してもアプリ本体は止めない（保存は成功させる）方針。
+async function sendLineNotify(text) {
+  try {
+    await fetch(NOTIFY_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
+      },
+      body: JSON.stringify({ text }),
+    });
+  } catch (e) {
+    console.error('LINE通知の送信に失敗:', e);
+  }
+}
+
+// 通知用の日付整形：7/1(火) のような表記を返す
+function fmtNotifyDate(ds) {
+  const d = new Date(ds + 'T00:00:00');
+  const dow = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
+  return (d.getMonth() + 1) + '/' + d.getDate() + '(' + dow + ')';
+}
+
+// 予定の相手に紐づく「お返し未対応」ログを通知用テキストにする。
+// okuri（贈り物）は除外。なければ空文字を返す。
+function buildPendingText(peopleIds) {
+  const CAT_LABEL = { itadaki: '頂き物', kari: '借りたもの', kashi: '貸したもの', arigato: 'ありがとう' };
+  const lines = [];
+  const names = [];
+  (peopleIds || []).forEach(pid => {
+    const p = getP(pid);
+    if (!p) return;
+    const pend = logs.filter(l => l.personId === pid && !l.done && CAT_LABEL[l.cat]);
+    if (pend.length) {
+      if (!names.includes(p.name)) names.push(p.name);
+      pend.forEach(l => {
+        const dateShort = (l.date || '').slice(5).replace('-', '/');
+        lines.push('☑︎ ' + CAT_LABEL[l.cat] + '｜' + l.title + '（' + dateShort + '）');
+      });
+    }
+  });
+  if (!lines.length) return '';
+  return '\n\n🎁 お返しがまだ：' + names.join('、') + '\n' + lines.join('\n');
+}
+// ──────────────────────────────────
+  
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: false }
 });
