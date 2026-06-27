@@ -906,7 +906,7 @@ async function deleteEvent(id) {
   // 削除通知
   if (ev) {
     const who = (ev.people || []).map(pid => getP(pid)?.name).filter(Boolean).join('、');
-    let msg = '🗑 予定が削除されました\n───────────\n\n' + ev.title +
+    let msg = '🗑 予定が削除されました\n────────────\n\n' + ev.title +
               '\n🗓 ' + fmtNotifyDate(ev.date) + ' ' + (ev.time === 'allday' ? '終日' : ev.time);
     if (who) msg += '\n👤 ' + who;
     await sendLineNotify(msg);
@@ -1199,7 +1199,7 @@ async function saveEvent() {
         const oldStr = fmtNotifyDate(oldDate) + ' ' + (oldTime === 'allday' ? '終日' : oldTime);
         const newStr = fmtNotifyDate(date) + ' ' + (time === 'allday' ? '終日' : time);
         const who = ev.people.map(pid => getP(pid)?.name).filter(Boolean).join('、');
-        let msg = '✏️ 予定が変更されました\n───────────\n\n' + title +
+        let msg = '✏️ 予定が変更されました\n────────────\n\n' + title +
                   '\n🗓 ' + oldStr + '\n　→ ' + newStr;
         if (who) msg += '\n👤 ' + who;
         sendLineNotify(msg);
@@ -1213,7 +1213,7 @@ async function saveEvent() {
       // 新規追加の通知
       const ev = fromDBEvent(data);
       const who = ev.people.map(pid => getP(pid)?.name).filter(Boolean).join('、');
-      let msg = '📅 予定が追加されました\n───────────\n\n' + title +
+      let msg = '📅 予定が追加されました\n────────────\n\n' + title +
                 '\n🗓 ' + fmtNotifyDate(date) + ' ' + (time === 'allday' ? '終日' : time);
       if (who) msg += '\n👤 ' + who;
       msg += buildPendingText(ev.people);
@@ -1248,8 +1248,17 @@ async function saveLog() {
     const payload = { cat, title, person_id: personId, date, done, amount, reply_to: replyTo, memo, display_name: displayName };
     const { data } = await db.from('logs').insert(payload).select().single();
     if (data) {
-      logs.push(fromDBLog(data));
+      const newLog = fromDBLog(data);
+      logs.push(newLog);
       if (replyTo) { const linked = logs.find(l => l.id === replyTo); if (linked && !linked.done) { linked.done = true; await db.from('logs').update({ done: true }).eq('id', replyTo); } }
+      // ログ新規追加の通知
+      const CAT_LABEL = { okuri: '贈り物', itadaki: '頂き物', kari: '借りたもの', kashi: '貸したもの', arigato: 'ありがとう' };
+      const pName = getP(newLog.personId)?.name || '';
+      const dateShort = (newLog.date || '').slice(5).replace('-', '/');
+      let msg = '🤝 ログが追加されました\n────────────\n\n' +
+                '☑︎ ' + (CAT_LABEL[newLog.cat] || '') + '｜' + newLog.title;
+      if (pName) msg += '\n👤 ' + pName + '（' + dateShort + '）';
+      await sendLineNotify(msg);
     }
   }
   setSyncing(false);
